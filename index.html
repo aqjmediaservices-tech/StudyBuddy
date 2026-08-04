@@ -1,0 +1,3154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Study Buddy</title>
+
+<link rel="manifest" href="manifest.json">
+
+  <!-- Feather Icons -->
+  <script src="https://unpkg.com/feather-icons"></script>
+  <style>
+    :root {
+      --bg-canvas: #090d16;
+      --bg-frame: #0f172a;
+      --bg-surface: #1e293b;
+      --bg-card: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-light: rgba(99, 102, 241, 0.15);
+      --danger: #ef4444;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --border: #334155;
+      --border-focus: #6366f1;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 20px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 0;
+    }
+
+    /* Mobile Frame Shell */
+    .mobile-frame {
+      width: 100%;
+      max-width: 430px;
+      height: 100vh;
+      max-height: 932px;
+      background-color: var(--bg-frame);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    }
+
+    @media (min-width: 480px) {
+      .mobile-frame {
+        height: 88vh;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+      }
+    }
+
+    /* Top Bar Header */
+    header.app-header {
+      padding: 1.25rem 1.25rem 0.75rem;
+      background-color: var(--bg-frame);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      z-index: 10;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--text-main);
+    }
+
+    .brand-logo i { color: var(--accent); }
+
+    .header-user-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: var(--bg-surface);
+      padding: 0.35rem 0.75rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .user-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--danger);
+    }
+
+    .user-dot.online { background-color: var(--success); }
+
+    /* Viewport & Tabs */
+    .app-viewport {
+      flex: 1;
+      overflow-y: auto;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tab-view {
+      display: none;
+      padding: 1.25rem;
+      animation: fadeIn 0.2s ease-in-out;
+      flex: 1;
+    }
+
+    .tab-view.active { display: block; }
+
+    #tab-canvas.active {
+      display: flex;
+      flex-direction: column;
+      padding: 0.75rem;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Auth Overlay */
+    .auth-overlay {
+      position: absolute;
+      inset: 0;
+      background-color: var(--bg-frame);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 2rem;
+      z-index: 100;
+      overflow-y: auto;
+    }
+
+    .auth-overlay.hidden { display: none !important; }
+
+    .auth-card-header { text-align: center; margin-bottom: 2rem; }
+    .auth-card-header h1 {
+      font-size: 1.875rem;
+      font-weight: 800;
+      margin-top: 0.5rem;
+      background: linear-gradient(135deg, #fff 0%, var(--text-muted) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .auth-card-header p { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.35rem; }
+
+    .form-group { margin-bottom: 1.15rem; }
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+      font-weight: 600;
+    }
+
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 0.85rem 1rem;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--border-focus); }
+
+    .auth-btn, .primary-btn {
+      width: 100%;
+      padding: 0.9rem;
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: background-color 0.2s;
+    }
+
+    .auth-btn:hover, .primary-btn:hover { background-color: var(--accent-hover); }
+
+    .auth-toggle {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .auth-toggle button {
+      background: none;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+      font-weight: 600;
+      margin-left: 0.25rem;
+    }
+
+    .error-msg {
+      background-color: rgba(239, 68, 68, 0.12);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      padding: 0.75rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    /* Dashboard UI */
+    .dashboard-greeting { margin-bottom: 1.25rem; }
+    .date-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 0.25rem;
+    }
+
+    .dashboard-greeting h2 { font-size: 1.5rem; font-weight: 700; }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .add-task-trigger {
+      background-color: var(--accent-light);
+      color: var(--accent);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: all 0.2s;
+    }
+
+    .task-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .task-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .task-card.completed { opacity: 0.6; }
+
+    .task-left { display: flex; align-items: center; gap: 0.85rem; flex: 1; min-width: 0; }
+    .task-checkbox {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--border-focus);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .task-card.completed .task-checkbox { background-color: var(--success); border-color: var(--success); }
+    .task-checkbox i { width: 14px; height: 14px; color: white; display: none; }
+    .task-card.completed .task-checkbox i { display: block; }
+    .task-details { flex: 1; min-width: 0; }
+    .task-title { font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+    .task-card.completed .task-title { text-decoration: line-through; color: var(--text-muted); }
+
+    .task-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-top: 0.25rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .task-tag { background-color: var(--bg-card); padding: 0.15rem 0.5rem; border-radius: 4px; color: var(--text-main); }
+    .priority-indicator { width: 8px; height: 8px; border-radius: 50%; }
+    .priority-high { background-color: var(--danger); }
+    .priority-medium { background-color: var(--warning); }
+    .priority-low { background-color: var(--success); }
+
+    .delete-task-btn, .edit-task-btn, .action-icon-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.3rem;
+    }
+    .delete-task-btn:hover, .action-icon-btn:hover { color: var(--danger); }
+    .edit-task-btn:hover { color: var(--accent); }
+
+    .empty-state {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--text-muted);
+      background-color: var(--bg-surface);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-md);
+    }
+    .empty-state i { width: 36px; height: 36px; margin-bottom: 0.5rem; color: var(--accent); opacity: 0.6; }
+
+    /* Home Stats Bar & List */
+    .home-stats-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .home-stats-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin-top: 0.75rem;
+    }
+
+    .home-stat-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--bg-card);
+      padding: 0.60rem 0.85rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+    }
+
+    .home-stat-badge {
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* Modals */
+    .modal-overlay {
+      position: absolute;
+      inset: 0;
+      background-color: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(4px);
+      z-index: 50;
+      display: flex;
+      align-items: flex-end;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    .modal-sheet {
+      width: 100%;
+      background-color: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      border-top-left-radius: var(--radius-lg);
+      border-top-right-radius: var(--radius-lg);
+      padding: 1.5rem;
+      transform: translateY(100%);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      max-height: 90%;
+      overflow-y: auto;
+    }
+    .modal-overlay.active .modal-sheet { transform: translateY(0); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+    .close-modal-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; }
+
+    /* SUBJECTS & TIMER STYLES */
+    .timer-card {
+      background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-card) 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .timer-display {
+      font-size: 2.5rem;
+      font-weight: 800;
+      font-family: monospace;
+      letter-spacing: 0.05em;
+      margin: 0.75rem 0;
+      color: var(--text-main);
+    }
+
+    .timer-controls {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+    }
+
+    .timer-btn {
+      padding: 0.6rem 1.25rem;
+      border-radius: 20px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+    }
+
+    .btn-start { background-color: var(--success); color: white; }
+    .btn-pause { background-color: var(--warning); color: white; }
+    .btn-stop { background-color: var(--danger); color: white; }
+
+    .timer-mode-toggle {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .mode-btn {
+      background-color: var(--bg-surface);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 0.25rem 0.6rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    .mode-btn.active {
+      background-color: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .subject-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .subject-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      position: relative;
+    }
+
+    .subject-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.3rem;
+    }
+
+    .subject-color-bar {
+      height: 4px;
+      width: 100%;
+      border-radius: 2px;
+      margin-bottom: 0.5rem;
+    }
+
+    .subject-name { font-weight: 700; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .subject-time { font-size: 0.75rem; color: var(--text-muted); }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      background-color: var(--bg-card);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background-color: var(--accent);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* GRADES STYLES */
+    .grades-folder-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .grade-folder-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+    }
+
+    .folder-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .folder-title {
+      font-weight: 700;
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .grade-badge {
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .badge-high { background-color: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid var(--success); }
+    .badge-mid { background-color: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid var(--warning); }
+    .badge-low { background-color: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger); }
+    .badge-none { background-color: rgba(148, 163, 184, 0.15); color: var(--text-muted); border: 1px solid var(--border); }
+
+    .grade-item-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .grade-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--bg-card);
+      padding: 0.6rem 0.8rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+    }
+
+    .grade-item-info { display: flex; flex-direction: column; }
+    .grade-item-title { font-weight: 600; color: var(--text-main); }
+    .grade-item-date { font-size: 0.7rem; color: var(--text-muted); }
+    .grade-item-score { font-weight: 700; font-size: 0.95rem; }
+
+    /* FILES & VAULT STYLES */
+    .vault-toolbar {
+      display: flex;
+      gap: 0.4rem;
+      margin-bottom: 0.75rem;
+      overflow-x: auto;
+      padding-bottom: 0.2rem;
+    }
+
+    .vault-action-btn {
+      background-color: var(--accent-light);
+      color: var(--accent);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 0.45rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .vault-action-btn:hover {
+      background-color: var(--accent);
+      color: white;
+    }
+
+    .vault-search-box {
+      margin-bottom: 0.75rem;
+    }
+
+    .vault-search-box input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      font-size: 0.8rem;
+      outline: none;
+    }
+
+    .breadcrumb-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background-color: var(--bg-surface);
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .breadcrumb-item {
+      color: var(--accent);
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .breadcrumb-item:hover { text-decoration: underline; }
+    .breadcrumb-separator { color: var(--text-muted); }
+
+    .file-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--bg-card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      cursor: pointer;
+      text-align: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .file-input-wrapper input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .vault-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .folder-item-card, .file-card, .note-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .folder-item-card {
+      padding: 0.85rem;
+      cursor: pointer;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      grid-column: span 2;
+      transition: border-color 0.2s;
+    }
+
+    .folder-item-card:hover { border-color: var(--accent); }
+
+    .folder-info {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .file-preview {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+      background-color: var(--bg-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+    }
+
+    .file-content, .note-content { padding: 0.75rem; }
+
+    .file-caption, .note-title {
+      font-weight: 600;
+      font-size: 0.85rem;
+      margin-bottom: 0.2rem;
+      word-break: break-word;
+      color: var(--text-main);
+    }
+
+    .note-body {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      white-space: pre-wrap;
+      margin-bottom: 0.5rem;
+      max-height: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .file-date, .note-date {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .file-actions-group {
+      display: flex;
+      gap: 0.3rem;
+      margin-top: 0.4rem;
+    }
+
+    .btn-open-canvas {
+      background-color: var(--accent-light);
+      color: var(--accent);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 0.35rem 0.5rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      flex: 1;
+      justify-content: center;
+    }
+
+    .btn-delete-item {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      padding: 0.35rem 0.5rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+    }
+
+    /* INTERACTIVE CANVAS TAB STYLES */
+    .canvas-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      flex: 1;
+      gap: 0.6rem;
+    }
+
+    .canvas-header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .canvas-file-select {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 0.4rem 0.6rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      flex: 1;
+      outline: none;
+    }
+
+    .canvas-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: 0.4rem 0.6rem;
+      border-radius: var(--radius-sm);
+      gap: 0.4rem;
+    }
+
+    .canvas-tool-group {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .tool-btn {
+      background: none;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 0.35rem;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tool-btn.active {
+      background-color: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .tool-btn i { width: 16px; height: 16px; }
+
+    .color-swatch-picker {
+      width: 22px;
+      height: 22px;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      background: none;
+    }
+
+    .canvas-viewport-wrapper {
+      position: relative;
+      flex: 1;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 380px;
+    }
+
+    .document-frame {
+      width: 100%;
+      height: 100%;
+      min-height: 500px;
+      border: none;
+      background-color: #ffffff;
+    }
+
+    .document-image-view {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .document-text-view {
+      width: 100%;
+      height: 100%;
+      padding: 1rem;
+      background-color: #ffffff;
+      color: #0f172a;
+      font-family: monospace;
+      font-size: 0.85rem;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    canvas.annotation-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* PROFILE & FRIENDS ENGINE STYLES */
+    .profile-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .profile-header-meta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .profile-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    .profile-details-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+      margin-top: 1rem;
+      background-color: var(--bg-card);
+      padding: 0.85rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .profile-detail-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .detail-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .detail-val {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-top: 0.1rem;
+    }
+
+    .visibility-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.4rem;
+    }
+
+    .friends-search-box {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .friends-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .friend-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .friend-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .friend-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: var(--bg-card);
+      border: 1px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .friend-stats-badge {
+      background-color: var(--accent-light);
+      color: var(--accent);
+      padding: 0.2rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    .requests-container {
+      margin-bottom: 1.25rem;
+    }
+
+    .request-card {
+      background-color: var(--bg-surface);
+      border: 1px dashed var(--accent);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Session Backup Box */
+    .session-export-card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    /* Navigation Bar */
+    nav.bottom-nav {
+      background-color: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 0.5rem 0.25rem;
+      z-index: 10;
+    }
+
+    .nav-item {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.65rem;
+      padding: 0.4rem 0.2rem;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .nav-item i { width: 20px; height: 20px; }
+    .nav-item.active { color: var(--accent); }
+
+    .sign-out-btn {
+      width: 100%;
+      padding: 0.75rem;
+      background-color: rgba(239, 68, 68, 0.15);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      margin-top: 1.5rem;
+      cursor: pointer;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <div class="mobile-frame">
+
+    <!-- Auth Overlay -->
+    <div id="authOverlay" class="auth-overlay">
+      <div class="auth-card-header">
+        <i data-feather="book-open" style="width: 42px; height: 42px; color: var(--accent);"></i>
+        <h1>Study Buddy</h1>
+        <p id="authSubtitle">Log in to sync your study goals & schedule</p>
+      </div>
+
+      <div id="authError" class="error-msg"></div>
+
+      <!-- Login -->
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginUsername">Username</label>
+          <input type="text" id="loginUsername" required placeholder="e.g. alex24" autocomplete="username" />
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" required placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <button type="submit" class="auth-btn">Log In</button>
+      </form>
+
+      <!-- Register -->
+      <form id="registerForm" class="hidden">
+        <div class="form-group">
+          <label for="regDisplayName">Full Name</label>
+          <input type="text" id="regDisplayName" required placeholder="Alex Johnson" />
+        </div>
+        <div class="form-group">
+          <label for="regUsername">Username</label>
+          <input type="text" id="regUsername" required placeholder="alex24" autocomplete="username" />
+        </div>
+        <div class="form-group">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" required placeholder="••••••••" autocomplete="new-password" />
+        </div>
+        <button type="submit" class="auth-btn">Create Account</button>
+      </form>
+
+      <div class="auth-toggle">
+        <span id="authToggleText">Don't have an account?</span>
+        <button type="button" id="authToggleBtn">Sign Up</button>
+      </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="addTaskModal" class="modal-overlay">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3 id="taskModalTitle">Create New Task</h3>
+          <button id="closeTaskModal" class="close-modal-btn"><i data-feather="x"></i></button>
+        </div>
+        <form id="taskForm">
+          <input type="hidden" id="editTaskId" />
+          <div class="form-group">
+            <label for="taskTitle">Task Title</label>
+            <input type="text" id="taskTitle" required placeholder="Read Chapter 4, Math..." />
+          </div>
+          <div class="form-group">
+            <label for="taskSubject">Subject / Category</label>
+            <input type="text" id="taskSubject" required placeholder="Mathematics, Physics..." />
+          </div>
+          <div style="display: flex; gap: 0.75rem;">
+            <div class="form-group" style="flex: 1;">
+              <label for="taskDueDate">Due Date</label>
+              <input type="date" id="taskDueDate" />
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label for="taskPriority">Priority</label>
+              <select id="taskPriority">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" id="taskSubmitBtn" class="primary-btn"><i data-feather="plus"></i> Add Task</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="addSubjectModal" class="modal-overlay">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>Create Subject</h3>
+          <button id="closeSubjectModal" class="close-modal-btn"><i data-feather="x"></i></button>
+        </div>
+        <form id="subjectForm">
+          <div class="form-group">
+            <label for="subjectName">Subject Name</label>
+            <input type="text" id="subjectName" required placeholder="e.g. Organic Chemistry" />
+          </div>
+          <div class="form-group">
+            <label for="subjectWeeklyGoal">Weekly Goal (Hours)</label>
+            <input type="number" id="subjectWeeklyGoal" min="0" step="0.5" placeholder="e.g. 5" value="5" required />
+          </div>
+          <div class="form-group">
+            <label for="subjectColor">Tag Color</label>
+            <select id="subjectColor">
+              <option value="#6366f1">Indigo</option>
+              <option value="#10b981">Emerald Green</option>
+              <option value="#f59e0b">Amber Gold</option>
+              <option value="#ef4444">Rose Red</option>
+              <option value="#8b5cf6">Purple</option>
+            </select>
+          </div>
+          <button type="submit" class="primary-btn"><i data-feather="plus"></i> Save Subject</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="addFolderModal" class="modal-overlay">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>New Subject Folder</h3>
+          <button id="closeFolderModal" class="close-modal-btn"><i data-feather="x"></i></button>
+        </div>
+        <form id="folderForm">
+          <div class="form-group">
+            <label for="folderSubject">Subject Name</label>
+            <input type="text" id="folderSubject" required placeholder="e.g. Mathematics, Physics" />
+          </div>
+          <button type="submit" class="primary-btn"><i data-feather="folder-plus"></i> Create Folder</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="addGradeModal" class="modal-overlay">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>Log Exam Score</h3>
+          <button id="closeGradeModal" class="close-modal-btn"><i data-feather="x"></i></button>
+        </div>
+        <form id="gradeForm">
+          <input type="hidden" id="gradeFolderId" />
+          <div class="form-group">
+            <label for="gradeTitle">Exam / Test Name</label>
+            <input type="text" id="gradeTitle" required placeholder="e.g. Midterm 1" />
+          </div>
+          <div class="form-group">
+            <label for="gradeScore">Score / Percentage (%)</label>
+            <input type="number" id="gradeScore" min="0" max="100" required placeholder="e.g. 88" />
+          </div>
+          <button type="submit" class="primary-btn"><i data-feather="check-circle"></i> Save Grade</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="addVaultFolderModal" class="modal-overlay">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>New Folder</h3>
+          <button id="closeVaultFolderModal" class="close-modal-btn"><i data-feather="x"></i></button>
+        </div>
+        <form id="vaultFolderForm">
+          <div class="form-group">
+            <label for="vaultFolderName">Folder Name</label>
+            <input type="text" id="vaultFolderName" required placeholder="e.g. Exam Prep Notes" />
+          </div>
+          <button type="submit" class="primary-btn"><i data-feather="folder-plus"></i> Create Folder</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="uploadVaultFileModal" class="modal-overlay">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>Upload Attachment</h3>
+          <button id="closeUploadFileModal" class="close-modal-btn"><i data-feather="x"></i></button>
+        </div>
+        <form id="vaultUploadForm">
+          <div class="form-group">
+            <label for="vaultCaptionInput">Description / Label</label>
+            <input type="text" id="vaultCaptionInput" placeholder="e.g. Lecture Slide PDF" required />
+          </div>
+
+          <div class="file-input-wrapper">
+            <i data-feather="upload-cloud" style="color: var(--accent); margin-right: 0.5rem;"></i>
+            <span id="fileInputLabel" style="font-size: 0.85rem; color: var(--text-muted);">Choose file...</span>
+            <input type="file" id="vaultFileInput" required />
+          </div>
+
+          <button type="submit" class="primary-btn"><i data-feather="upload"></i> Save File</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="addNoteModal" class="modal-overlay">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>Create Text Note</h3>
+          <button id="closeNoteModal" class="close-modal-btn"><i data-feather="x"></i></button>
+        </div>
+        <form id="noteForm">
+          <div class="form-group">
+            <label for="noteTitleInput">Title</label>
+            <input type="text" id="noteTitleInput" required placeholder="e.g. Formula Checklist" />
+          </div>
+          <div class="form-group">
+            <label for="noteBodyInput">Note Body</label>
+            <textarea id="noteBodyInput" rows="4" required placeholder="Type out your quick notes here..."></textarea>
+          </div>
+          <button type="submit" class="primary-btn"><i data-feather="edit"></i> Save Note</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div id="editProfileModal" class="modal-overlay">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>Edit Profile Information</h3>
+          <button id="closeProfileModal" class="close-modal-btn"><i data-feather="x"></i></button>
+        </div>
+        <form id="profileForm">
+          <div class="form-group">
+            <label for="editAge">Age</label>
+            <input type="number" id="editAge" placeholder="e.g. 21" />
+            <div class="visibility-toggle-row">
+              <span class="detail-label">Publicly Visible</span>
+              <input type="checkbox" id="editAgePublic" checked />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="editUniversity">University / School</label>
+            <input type="text" id="editUniversity" placeholder="e.g. Stanford University" />
+            <div class="visibility-toggle-row">
+              <span class="detail-label">Publicly Visible</span>
+              <input type="checkbox" id="editUniversityPublic" checked />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="editMajor">Major / Field</label>
+            <input type="text" id="editMajor" placeholder="e.g. Computer Science" />
+            <div class="visibility-toggle-row">
+              <span class="detail-label">Publicly Visible</span>
+              <input type="checkbox" id="editMajorPublic" checked />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="editSemester">Semester / Year</label>
+            <input type="text" id="editSemester" placeholder="e.g. Semester 5" />
+            <div class="visibility-toggle-row">
+              <span class="detail-label">Publicly Visible</span>
+              <input type="checkbox" id="editSemesterPublic" checked />
+            </div>
+          </div>
+
+          <button type="submit" class="primary-btn"><i data-feather="save"></i> Save Profile</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- App Header -->
+    <header class="app-header">
+      <div class="brand-logo">
+        <i data-feather="book-open"></i>
+        <span>Study Buddy</span>
+      </div>
+      <div class="header-user-badge">
+        <span id="statusDot" class="user-dot"></span>
+        <span id="userBadgeHandle">@guest</span>
+      </div>
+    </header>
+
+    <!-- Main Viewport -->
+    <div class="app-viewport">
+
+      <!-- Tab 1: Home -->
+      <section id="tab-home" class="tab-view active">
+        <div class="dashboard-greeting">
+          <span id="liveDateDisplay" class="date-badge">Loading date...</span>
+          <h2 id="greetingUserDisplay">Hello, Student 👋</h2>
+        </div>
+
+        <!-- Total Hours Studied Component -->
+        <div class="home-stats-card">
+          <div class="section-title" style="font-size:0.95rem;">
+            <i data-feather="clock" style="color: var(--accent); width:18px;"></i>
+            <span>Subject Hours Studied</span>
+          </div>
+          <div id="homeHoursList" class="home-stats-list">
+            <div style="font-size:0.8rem; color:var(--text-muted); text-align:center;">No subjects added yet.</div>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <span class="section-title"><i data-feather="check-square" style="color: var(--accent);"></i> Active Tasks</span>
+          <button id="openTaskModalBtn" class="add-task-trigger"><i data-feather="plus"></i> New Task</button>
+        </div>
+
+        <div id="taskListContainer" class="task-list">
+          <div class="empty-state">
+            <i data-feather="inbox"></i>
+            <p>No study tasks yet. Tap "+ New Task" to start!</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 2: Subjects & Study Timer -->
+      <section id="tab-subjects" class="tab-view">
+        <div class="timer-card">
+          <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Live Study Timer</div>
+          
+          <div class="timer-mode-toggle" style="margin-top:0.4rem;">
+            <button id="modeStopwatch" class="mode-btn active">Stopwatch</button>
+            <button id="modePomodoro" class="mode-btn">Pomodoro (25m)</button>
+          </div>
+
+          <div id="timerDisplay" class="timer-display">00:00:00</div>
+          
+          <div class="form-group" style="margin-bottom: 0.8rem;">
+            <select id="timerSubjectSelect">
+              <option value="General Study">General Study</option>
+            </select>
+          </div>
+
+          <div class="timer-controls">
+            <button id="startTimerBtn" class="timer-btn btn-start"><i data-feather="play"></i> Start</button>
+            <button id="pauseTimerBtn" class="timer-btn btn-pause hidden"><i data-feather="pause"></i> Pause</button>
+            <button id="stopTimerBtn" class="timer-btn btn-stop hidden"><i data-feather="square"></i> Save Session</button>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <span class="section-title"><i data-feather="book" style="color: var(--accent);"></i> Subjects</span>
+          <button id="openSubjectModalBtn" class="add-task-trigger"><i data-feather="plus"></i> New Subject</button>
+        </div>
+
+        <div id="subjectGrid" class="subject-grid">
+          <div class="empty-state" style="grid-column: span 2;">
+            <i data-feather="book-open"></i>
+            <p>No subjects added yet. Tap "+ New Subject" to create one!</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 3: Grades -->
+      <section id="tab-grades" class="tab-view">
+        <div class="section-header">
+          <span class="section-title"><i data-feather="award" style="color: var(--accent);"></i> Performance Analyzer</span>
+          <button id="openFolderModalBtn" class="add-task-trigger"><i data-feather="folder-plus"></i> New Folder</button>
+        </div>
+
+        <div id="gradesFolderContainer" class="grades-folder-list">
+          <div class="empty-state">
+            <i data-feather="award"></i>
+            <p>No subject folders created yet. Tap "+ New Folder" to start logging test scores!</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 4: Files -->
+      <section id="tab-files" class="tab-view">
+        <div class="section-header">
+          <span class="section-title"><i data-feather="folder" style="color: var(--accent);"></i> File & Memory Vault</span>
+        </div>
+
+        <div class="vault-toolbar">
+          <button id="openAddVaultFolderBtn" class="vault-action-btn"><i data-feather="folder-plus" style="width:14px;"></i> + Folder</button>
+          <button id="openUploadVaultFileBtn" class="vault-action-btn"><i data-feather="upload" style="width:14px;"></i> + File</button>
+          <button id="openAddNoteBtn" class="vault-action-btn"><i data-feather="edit-3" style="width:14px;"></i> + Note</button>
+        </div>
+
+        <div class="vault-search-box">
+          <input type="text" id="vaultSearchInput" placeholder="🔍 Search files, notes & folders..." />
+        </div>
+
+        <div id="vaultBreadcrumbs" class="breadcrumb-bar">
+          <span class="breadcrumb-item" data-folder-id="root">Root</span>
+        </div>
+
+        <div id="vaultGrid" class="vault-grid">
+          <div class="empty-state" style="grid-column: span 2;">
+            <i data-feather="folder"></i>
+            <p>This directory is empty. Use the buttons above to add folders, files, or notes!</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 5: Canvas -->
+      <section id="tab-canvas" class="tab-view">
+        <div class="canvas-container">
+          <div class="canvas-header-bar">
+            <select id="canvasFileSelector" class="canvas-file-select">
+              <option value="">Select Document to View...</option>
+            </select>
+          </div>
+
+          <div class="canvas-toolbar">
+            <div class="canvas-tool-group">
+              <button id="toolScroll" class="tool-btn active" title="Scroll/Pan"><i data-feather="move"></i></button>
+              <button id="toolHighlight" class="tool-btn" title="Highlighter"><i data-feather="edit-3"></i></button>
+              <button id="toolPen" class="tool-btn" title="Pen Tool"><i data-feather="edit-2"></i></button>
+              <button id="toolText" class="tool-btn" title="Text Tool"><i data-feather="type"></i></button>
+              <button id="toolEraser" class="tool-btn" title="Eraser"><i data-feather="rotate-ccw"></i></button>
+            </div>
+
+            <div class="canvas-tool-group">
+              <input type="color" id="canvasColorPicker" class="color-swatch-picker" value="#fef08a" />
+              <button id="btnClearCanvas" class="tool-btn" title="Clear Canvas Marks"><i data-feather="trash-2"></i></button>
+            </div>
+          </div>
+
+          <div id="canvasViewportWrapper" class="canvas-viewport-wrapper">
+            <div id="canvasEmptyState" class="empty-state">
+              <i data-feather="file-text"></i>
+              <p>No document selected. Open a file from the Files Tab or select one above!</p>
+            </div>
+            
+            <div id="canvasDocumentHolder" class="hidden" style="width:100%; height:100%; position:relative;">
+              <div id="mediaViewerContainer" style="width:100%; height:100%;"></div>
+              <canvas id="annotationCanvas" class="annotation-layer"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 6: Friends / Profile -->
+      <section id="tab-friends" class="tab-view">
+        <div class="section-header">
+          <span class="section-title"><i data-feather="user" style="color: var(--accent);"></i> My Profile</span>
+          <button id="openEditProfileBtn" class="add-task-trigger"><i data-feather="edit-2"></i> Edit Profile</button>
+        </div>
+
+        <div class="profile-card">
+          <div class="profile-header-meta">
+            <div id="profileAvatar" class="profile-avatar">?</div>
+            <div>
+              <h3 id="profileFullName">Student Name</h3>
+              <p id="profileHandle" style="font-size: 0.85rem; color: var(--text-muted);">@username</p>
+            </div>
+          </div>
+
+          <div class="profile-details-grid">
+            <div class="profile-detail-item">
+              <span class="detail-label">Age</span>
+              <span id="dispAge" class="detail-val">Not Set</span>
+            </div>
+            <div class="profile-detail-item">
+              <span class="detail-label">University</span>
+              <span id="dispUniversity" class="detail-val">Not Set</span>
+            </div>
+            <div class="profile-detail-item">
+              <span class="detail-label">Major</span>
+              <span id="dispMajor" class="detail-val">Not Set</span>
+            </div>
+            <div class="profile-detail-item">
+              <span class="detail-label">Semester</span>
+              <span id="dispSemester" class="detail-val">Not Set</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Session Backup Box -->
+        <div class="session-export-card">
+          <div class="section-title" style="font-size: 0.95rem; margin-bottom:0.5rem;">
+            <i data-feather="database" style="color: var(--accent); width:18px;"></i> Session Data Backup & Sync
+          </div>
+          <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.8rem;">Export your active session state, tasks, and subjects to JSON, or load a session file to restore details into any account.</p>
+          <div style="display: flex; gap: 0.5rem;">
+            <button id="exportSessionBtn" class="vault-action-btn" style="flex:1; justify-content:center;"><i data-feather="download" style="width:14px;"></i> Export Session</button>
+            <button id="loadSessionBtn" class="vault-action-btn" style="flex:1; justify-content:center;"><i data-feather="upload" style="width:14px;"></i> Load Session</button>
+            <input type="file" id="importSessionInput" accept=".json" style="display:none;" />
+          </div>
+        </div>
+
+        <div class="section-header">
+          <span class="section-title"><i data-feather="users" style="color: var(--accent);"></i> Friends Engine</span>
+        </div>
+
+        <!-- Add Friend Search Bar -->
+        <div class="friends-search-box">
+          <input type="text" id="friendSearchInput" placeholder="Enter Username / ID..." style="flex:1; padding: 0.65rem 0.85rem; background-color: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-main); font-size: 0.85rem; outline:none;" />
+          <button id="sendFriendReqBtn" class="vault-action-btn" style="border-radius: var(--radius-sm);"><i data-feather="user-plus"></i> Add</button>
+        </div>
+
+        <!-- Incoming Friend Requests -->
+        <div id="friendRequestsSection" class="requests-container hidden">
+          <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent); margin-bottom: 0.5rem;">Friend Requests</div>
+          <div id="friendRequestsList"></div>
+        </div>
+
+        <!-- Friends List -->
+        <div id="friendsList" class="friends-list">
+          <div class="empty-state">
+            <i data-feather="users"></i>
+            <p>No study buddies added yet. Search a username to connect!</p>
+          </div>
+        </div>
+
+        <button id="logoutBtn" class="sign-out-btn">Log Out</button>
+      </section>
+
+    </div>
+
+    <!-- Navigation -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-target="tab-home">
+        <i data-feather="grid"></i>
+        <span>Home</span>
+      </button>
+      <button class="nav-item" data-target="tab-subjects">
+        <i data-feather="clock"></i>
+        <span>Subjects</span>
+      </button>
+      <button class="nav-item" data-target="tab-grades">
+        <i data-feather="award"></i>
+        <span>Grades</span>
+      </button>
+      <button class="nav-item" data-target="tab-files">
+        <i data-feather="folder"></i>
+        <span>Files</span>
+      </button>
+      <button class="nav-item" data-target="tab-canvas" id="canvasNavTabBtn">
+        <i data-feather="edit-3"></i>
+        <span>Canvas</span>
+      </button>
+      <button class="nav-item" data-target="tab-friends">
+        <i data-feather="users"></i>
+        <span>Social</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- Firebase v10 SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+      getAuth, 
+      createUserWithEmailAndPassword, 
+      signInWithEmailAndPassword, 
+      onAuthStateChanged, 
+      signOut,
+      updateProfile 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { 
+      getFirestore, 
+      doc, 
+      setDoc, 
+      getDoc,
+      collection,
+      addDoc,
+      onSnapshot,
+      updateDoc,
+      deleteDoc,
+      query,
+      orderBy,
+      getDocs
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyAR7CtIfd007TaelNpPd3suN8Ftngv-EkQ",
+      authDomain: "studybuddy-2da4f.firebaseapp.com",
+      projectId: "studybuddy-2da4f",
+      storageBucket: "studybuddy-2da4f.firebasestorage.app",
+      messagingSenderId: "28387958397",
+      appId: "1:28387958397:web:543983cbfb8b147a295b14",
+      measurementId: "G-SSM8MYBLW6"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    feather.replace();
+
+    // DOM References
+    const authOverlay = document.getElementById('authOverlay');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const authToggleBtn = document.getElementById('authToggleBtn');
+    const authToggleText = document.getElementById('authToggleText');
+    const authSubtitle = document.getElementById('authSubtitle');
+    const authError = document.getElementById('authError');
+    const statusDot = document.getElementById('statusDot');
+    const userBadgeHandle = document.getElementById('userBadgeHandle');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const navItems = document.querySelectorAll('.nav-item');
+    const tabViews = document.querySelectorAll('.tab-view');
+
+    // Home / Task Elements
+    const liveDateDisplay = document.getElementById('liveDateDisplay');
+    const greetingUserDisplay = document.getElementById('greetingUserDisplay');
+    const taskListContainer = document.getElementById('taskListContainer');
+    const homeHoursList = document.getElementById('homeHoursList');
+    const addTaskModal = document.getElementById('addTaskModal');
+    const openTaskModalBtn = document.getElementById('openTaskModalBtn');
+    const closeTaskModal = document.getElementById('closeTaskModal');
+    const taskForm = document.getElementById('taskForm');
+    const editTaskIdInput = document.getElementById('editTaskId');
+    const taskModalTitle = document.getElementById('taskModalTitle');
+    const taskSubmitBtn = document.getElementById('taskSubmitBtn');
+
+    // Subjects & Timer Elements
+    const subjectGrid = document.getElementById('subjectGrid');
+    const addSubjectModal = document.getElementById('addSubjectModal');
+    const openSubjectModalBtn = document.getElementById('openSubjectModalBtn');
+    const closeSubjectModal = document.getElementById('closeSubjectModal');
+    const subjectForm = document.getElementById('subjectForm');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const startTimerBtn = document.getElementById('startTimerBtn');
+    const pauseTimerBtn = document.getElementById('pauseTimerBtn');
+    const stopTimerBtn = document.getElementById('stopTimerBtn');
+    const timerSubjectSelect = document.getElementById('timerSubjectSelect');
+    const modeStopwatch = document.getElementById('modeStopwatch');
+    const modePomodoro = document.getElementById('modePomodoro');
+
+    // Grades Elements
+    const gradesFolderContainer = document.getElementById('gradesFolderContainer');
+    const addFolderModal = document.getElementById('addFolderModal');
+    const openFolderModalBtn = document.getElementById('openFolderModalBtn');
+    const closeFolderModal = document.getElementById('closeFolderModal');
+    const folderForm = document.getElementById('folderForm');
+    const addGradeModal = document.getElementById('addGradeModal');
+    const closeGradeModal = document.getElementById('closeGradeModal');
+    const gradeForm = document.getElementById('gradeForm');
+    const gradeFolderIdInput = document.getElementById('gradeFolderId');
+
+    // Vault / Files Elements
+    const vaultGrid = document.getElementById('vaultGrid');
+    const vaultBreadcrumbs = document.getElementById('vaultBreadcrumbs');
+    const vaultSearchInput = document.getElementById('vaultSearchInput');
+    const addVaultFolderModal = document.getElementById('addVaultFolderModal');
+    const openAddVaultFolderBtn = document.getElementById('openAddVaultFolderBtn');
+    const closeVaultFolderModal = document.getElementById('closeVaultFolderModal');
+    const vaultFolderForm = document.getElementById('vaultFolderForm');
+    const vaultFolderName = document.getElementById('vaultFolderName');
+
+    const uploadVaultFileModal = document.getElementById('uploadVaultFileModal');
+    const openUploadVaultFileBtn = document.getElementById('openUploadVaultFileBtn');
+    const closeUploadFileModal = document.getElementById('closeUploadFileModal');
+    const vaultUploadForm = document.getElementById('vaultUploadForm');
+    const vaultCaptionInput = document.getElementById('vaultCaptionInput');
+    const vaultFileInput = document.getElementById('vaultFileInput');
+    const fileInputLabel = document.getElementById('fileInputLabel');
+
+    const addNoteModal = document.getElementById('addNoteModal');
+    const openAddNoteBtn = document.getElementById('openAddNoteBtn');
+    const closeNoteModal = document.getElementById('closeNoteModal');
+    const noteForm = document.getElementById('noteForm');
+    const noteTitleInput = document.getElementById('noteTitleInput');
+    const noteBodyInput = document.getElementById('noteBodyInput');
+
+    // Canvas Elements
+    const canvasFileSelector = document.getElementById('canvasFileSelector');
+    const canvasViewportWrapper = document.getElementById('canvasViewportWrapper');
+    const canvasEmptyState = document.getElementById('canvasEmptyState');
+    const canvasDocumentHolder = document.getElementById('canvasDocumentHolder');
+    const mediaViewerContainer = document.getElementById('mediaViewerContainer');
+    const annotationCanvas = document.getElementById('annotationCanvas');
+    const canvasCtx = annotationCanvas.getContext('2d');
+
+    const toolScroll = document.getElementById('toolScroll');
+    const toolHighlight = document.getElementById('toolHighlight');
+    const toolPen = document.getElementById('toolPen');
+    const toolText = document.getElementById('toolText');
+    const toolEraser = document.getElementById('toolEraser');
+    const canvasColorPicker = document.getElementById('canvasColorPicker');
+    const btnClearCanvas = document.getElementById('btnClearCanvas');
+    const canvasNavTabBtn = document.getElementById('canvasNavTabBtn');
+
+    // Profile, Social & Export/Load Elements
+    const openEditProfileBtn = document.getElementById('openEditProfileBtn');
+    const editProfileModal = document.getElementById('editProfileModal');
+    const closeProfileModal = document.getElementById('closeProfileModal');
+    const profileForm = document.getElementById('profileForm');
+
+    const profileAvatar = document.getElementById('profileAvatar');
+    const profileFullName = document.getElementById('profileFullName');
+    const profileHandle = document.getElementById('profileHandle');
+    const dispAge = document.getElementById('dispAge');
+    const dispUniversity = document.getElementById('dispUniversity');
+    const dispMajor = document.getElementById('dispMajor');
+    const dispSemester = document.getElementById('dispSemester');
+
+    const friendSearchInput = document.getElementById('friendSearchInput');
+    const sendFriendReqBtn = document.getElementById('sendFriendReqBtn');
+    const friendRequestsSection = document.getElementById('friendRequestsSection');
+    const friendRequestsList = document.getElementById('friendRequestsList');
+    const friendsList = document.getElementById('friendsList');
+
+    const exportSessionBtn = document.getElementById('exportSessionBtn');
+    const loadSessionBtn = document.getElementById('loadSessionBtn');
+    const importSessionInput = document.getElementById('importSessionInput');
+
+    let isRegisterMode = false;
+    let unsubscribeTasks = null;
+    let unsubscribeSubjects = null;
+    let unsubscribeSessions = null;
+    let unsubscribeFolders = null;
+    let unsubscribeFriends = null;
+    let unsubscribeRequests = null;
+    let gradeSubscribers = {};
+
+    let timerInterval = null;
+    let secondsElapsed = 0;
+    let timerMode = 'stopwatch';
+    let pomodoroDuration = 25 * 60;
+    let subjectHoursMap = {};
+    let cachedSubjects = [];
+
+    let currentFolderStack = [{ id: 'root', name: 'Root' }];
+
+    // Canvas drawing state
+    let activeTool = 'scroll';
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+    let currentActiveFile = null;
+
+    const getInternalEmail = (username) => `${username.trim().toLowerCase()}@studybuddy.internal`;
+
+    function updateLiveDate() {
+      const now = new Date();
+      liveDateDisplay.textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    }
+    updateLiveDate();
+
+    // Tab Navigation Listener
+    navItems.forEach(item => {
+      item.addEventListener('click', () => {
+        const target = item.getAttribute('data-target');
+        navItems.forEach(n => n.classList.remove('active'));
+        tabViews.forEach(v => v.classList.remove('active'));
+        item.classList.add('active');
+        document.getElementById(target).classList.add('active');
+      });
+    });
+
+    // Modal Events
+    openTaskModalBtn.addEventListener('click', () => {
+      taskModalTitle.textContent = "Create New Task";
+      taskSubmitBtn.innerHTML = `<i data-feather="plus"></i> Add Task`;
+      editTaskIdInput.value = "";
+      taskForm.reset();
+      addTaskModal.classList.add('active');
+      feather.replace();
+    });
+    closeTaskModal.addEventListener('click', () => addTaskModal.classList.remove('active'));
+    openSubjectModalBtn.addEventListener('click', () => addSubjectModal.classList.add('active'));
+    closeSubjectModal.addEventListener('click', () => addSubjectModal.classList.remove('active'));
+    openFolderModalBtn.addEventListener('click', () => addFolderModal.classList.add('active'));
+    closeFolderModal.addEventListener('click', () => addFolderModal.classList.remove('active'));
+    closeGradeModal.addEventListener('click', () => addGradeModal.classList.remove('active'));
+
+    openAddVaultFolderBtn.addEventListener('click', () => addVaultFolderModal.classList.add('active'));
+    closeVaultFolderModal.addEventListener('click', () => addVaultFolderModal.classList.remove('active'));
+    openUploadVaultFileBtn.addEventListener('click', () => uploadVaultFileModal.classList.add('active'));
+    closeUploadFileModal.addEventListener('click', () => uploadVaultFileModal.classList.remove('active'));
+    openAddNoteBtn.addEventListener('click', () => addNoteModal.classList.add('active'));
+    closeNoteModal.addEventListener('click', () => addNoteModal.classList.remove('active'));
+
+    openEditProfileBtn.addEventListener('click', () => editProfileModal.classList.add('active'));
+    closeProfileModal.addEventListener('click', () => editProfileModal.classList.remove('active'));
+
+    authToggleBtn.addEventListener('click', () => {
+      isRegisterMode = !isRegisterMode;
+      authError.style.display = 'none';
+      if (isRegisterMode) {
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+        authSubtitle.textContent = 'Create an account to track study goals';
+        authToggleText.textContent = 'Already have an account?';
+        authToggleBtn.textContent = 'Log In';
+      } else {
+        registerForm.classList.add('hidden');
+        loginForm.classList.remove('hidden');
+        authSubtitle.textContent = 'Log in to sync your study goals & schedule';
+        authToggleText.textContent = "Don't have an account?";
+        authToggleBtn.textContent = 'Sign Up';
+      }
+    });
+
+    function showError(msg) {
+      authError.textContent = msg;
+      authError.style.display = 'block';
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      try {
+        await signInWithEmailAndPassword(auth, getInternalEmail(username), password);
+      } catch (err) {
+        showError("Invalid username or password.");
+      }
+    });
+
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('regDisplayName').value.trim();
+      const username = document.getElementById('regUsername').value.trim().toLowerCase();
+      const password = document.getElementById('regPassword').value;
+
+      try {
+        const userDocRef = doc(db, "users", username);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+          showError("Username is already taken.");
+          return;
+        }
+
+        const cred = await createUserWithEmailAndPassword(auth, getInternalEmail(username), password);
+        await setDoc(doc(db, "users", username), {
+          displayName: name,
+          username: username,
+          createdAt: new Date().toISOString()
+        });
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    logoutBtn.addEventListener('click', () => signOut(auth));
+
+    // Auth state observer
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        authOverlay.classList.add('hidden');
+        statusDot.classList.add('online');
+        const username = user.email ? user.email.split('@')[0] : 'user';
+
+        loadUserProfile(username);
+        subscribeToTasks(username);
+        subscribeToSubjects(username);
+        subscribeToSessions(username);
+        subscribeToGradeFolders(username);
+        subscribeToFriends(username);
+        subscribeToFriendRequests(username);
+        renderVaultDirectory();
+
+      } else {
+        authOverlay.classList.remove('hidden');
+        statusDot.classList.remove('online');
+        if (unsubscribeTasks) unsubscribeTasks();
+        if (unsubscribeSubjects) unsubscribeSubjects();
+        if (unsubscribeSessions) unsubscribeSessions();
+        if (unsubscribeFolders) unsubscribeFolders();
+        if (unsubscribeFriends) unsubscribeFriends();
+        if (unsubscribeRequests) unsubscribeRequests();
+        Object.values(gradeSubscribers).forEach(unsub => unsub());
+        gradeSubscribers = {};
+      }
+    });
+
+    // Profile Load & Update
+    async function loadUserProfile(username) {
+      try {
+        const userDocRef = doc(db, "users", username);
+        const userSnap = await getDoc(userDocRef);
+
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          const name = data.displayName || username;
+          userBadgeHandle.textContent = `@${data.username}`;
+          greetingUserDisplay.textContent = `Hello, ${name.split(' ')[0]} 👋`;
+
+          profileFullName.textContent = name;
+          profileHandle.textContent = `@${data.username}`;
+          profileAvatar.textContent = name.charAt(0).toUpperCase();
+
+          dispAge.textContent = data.age || 'Not Set';
+          dispUniversity.textContent = data.university || 'Not Set';
+          dispMajor.textContent = data.major || 'Not Set';
+          dispSemester.textContent = data.semester || 'Not Set';
+
+          document.getElementById('editAge').value = data.age || '';
+          document.getElementById('editUniversity').value = data.university || '';
+          document.getElementById('editMajor').value = data.major || '';
+          document.getElementById('editSemester').value = data.semester || '';
+
+          document.getElementById('editAgePublic').checked = data.agePublic !== false;
+          document.getElementById('editUniversityPublic').checked = data.universityPublic !== false;
+          document.getElementById('editMajorPublic').checked = data.majorPublic !== false;
+          document.getElementById('editSemesterPublic').checked = data.semesterPublic !== false;
+        }
+      } catch (err) {
+        console.error("Profile load error:", err);
+      }
+    }
+
+    profileForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!auth.currentUser) return;
+      const username = auth.currentUser.email.split('@')[0];
+
+      await updateDoc(doc(db, "users", username), {
+        age: document.getElementById('editAge').value.trim(),
+        agePublic: document.getElementById('editAgePublic').checked,
+        university: document.getElementById('editUniversity').value.trim(),
+        universityPublic: document.getElementById('editUniversityPublic').checked,
+        major: document.getElementById('editMajor').value.trim(),
+        majorPublic: document.getElementById('editMajorPublic').checked,
+        semester: document.getElementById('editSemester').value.trim(),
+        semesterPublic: document.getElementById('editSemesterPublic').checked,
+      });
+
+      editProfileModal.classList.remove('active');
+      loadUserProfile(username);
+    });
+
+    // FRIENDS ENGINE LISTENERS & ACTIONS
+    function subscribeToFriends(username) {
+      if (unsubscribeFriends) unsubscribeFriends();
+      const q = collection(db, "users", username, "friends");
+
+      unsubscribeFriends = onSnapshot(q, async (snapshot) => {
+        if (snapshot.empty) {
+          friendsList.innerHTML = `
+            <div class="empty-state">
+              <i data-feather="users"></i>
+              <p>No study buddies added yet. Search a username to connect!</p>
+            </div>`;
+          feather.replace();
+          return;
+        }
+
+        friendsList.innerHTML = '';
+        for (const docSnap of snapshot.docs) {
+          const friendUsername = docSnap.id;
+
+          const friendUserSnap = await getDoc(doc(db, "users", friendUsername));
+          let friendProfile = friendUserSnap.exists() ? friendUserSnap.data() : {};
+
+          const friendSessionsSnap = await getDocs(collection(db, "users", friendUsername, "studySessions"));
+          let totalSecs = 0;
+          friendSessionsSnap.forEach(s => totalSecs += (s.data().durationSeconds || 0));
+          const totalHours = (totalSecs / 3600).toFixed(1);
+
+          const card = document.createElement('div');
+          card.className = 'friend-card';
+          
+          let publicDetails = [];
+          if (friendProfile.universityPublic && friendProfile.university) publicDetails.push(friendProfile.university);
+          if (friendProfile.majorPublic && friendProfile.major) publicDetails.push(friendProfile.major);
+
+          card.innerHTML = `
+            <div class="friend-info">
+              <div class="friend-avatar">${(friendProfile.displayName || friendUsername).charAt(0).toUpperCase()}</div>
+              <div>
+                <div style="font-weight:700; font-size: 0.95rem;">${friendProfile.displayName || friendUsername}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">${publicDetails.join(' • ') || '@' + friendUsername}</div>
+              </div>
+            </div>
+            <div class="friend-stats-badge">⏱ ${totalHours} hrs</div>
+          `;
+          friendsList.appendChild(card);
+        }
+        feather.replace();
+      });
+    }
+
+    function subscribeToFriendRequests(username) {
+      if (unsubscribeRequests) unsubscribeRequests();
+      const q = collection(db, "users", username, "friendRequests");
+
+      unsubscribeRequests = onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+          friendRequestsSection.classList.add('hidden');
+          return;
+        }
+
+        friendRequestsSection.classList.remove('hidden');
+        friendRequestsList.innerHTML = '';
+
+        snapshot.forEach((docSnap) => {
+          const senderUsername = docSnap.id;
+
+          const reqCard = document.createElement('div');
+          reqCard.className = 'request-card';
+          reqCard.innerHTML = `
+            <div>
+              <span style="font-weight:700; font-size: 0.88rem;">@${senderUsername}</span>
+              <span style="font-size:0.75rem; color:var(--text-muted);"> sent you a request</span>
+            </div>
+            <div style="display:flex; gap:0.4rem;">
+              <button class="add-task-trigger accept-req-btn" data-username="${senderUsername}" style="padding: 0.3rem 0.6rem;">Accept</button>
+              <button class="btn-delete-item decline-req-btn" data-username="${senderUsername}" style="padding: 0.3rem 0.6rem;">Decline</button>
+            </div>
+          `;
+          friendRequestsList.appendChild(reqCard);
+        });
+
+        attachRequestActionListeners(username);
+      });
+    }
+
+    function attachRequestActionListeners(currentUsername) {
+      document.querySelectorAll('.accept-req-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const senderUsername = btn.getAttribute('data-username');
+          await setDoc(doc(db, "users", currentUsername, "friends", senderUsername), { addedAt: new Date().toISOString() });
+          await setDoc(doc(db, "users", senderUsername, "friends", currentUsername), { addedAt: new Date().toISOString() });
+          await deleteDoc(doc(db, "users", currentUsername, "friendRequests", senderUsername));
+        });
+      });
+
+      document.querySelectorAll('.decline-req-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const senderUsername = btn.getAttribute('data-username');
+          await deleteDoc(doc(db, "users", currentUsername, "friendRequests", senderUsername));
+        });
+      });
+    }
+
+    sendFriendReqBtn.addEventListener('click', async () => {
+      const targetUsername = friendSearchInput.value.trim().toLowerCase();
+      if (!targetUsername || !auth.currentUser) return;
+      const currentUsername = auth.currentUser.email.split('@')[0];
+
+      if (targetUsername === currentUsername) {
+        alert("You cannot add yourself as a friend.");
+        return;
+      }
+
+      const userDocRef = doc(db, "users", targetUsername);
+      const userSnap = await getDoc(userDocRef);
+
+      if (!userSnap.exists()) {
+        alert(`User "@${targetUsername}" not found.`);
+        return;
+      }
+
+      await setDoc(doc(db, "users", targetUsername, "friendRequests", currentUsername), {
+        from: currentUsername,
+        createdAt: new Date().toISOString()
+      });
+
+      alert(`Friend request sent to @${targetUsername}!`);
+      friendSearchInput.value = '';
+    });
+
+    // Real-Time Tasks Listener with Edit support
+    function subscribeToTasks(username) {
+      if (unsubscribeTasks) unsubscribeTasks();
+      const q = query(collection(db, "users", username, "tasks"), orderBy("createdAt", "desc"));
+
+      unsubscribeTasks = onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+          taskListContainer.innerHTML = `
+            <div class="empty-state">
+              <i data-feather="inbox"></i>
+              <p>No study tasks yet. Tap "+ New Task" to start!</p>
+            </div>`;
+          feather.replace();
+          return;
+        }
+
+        taskListContainer.innerHTML = '';
+        snapshot.forEach((docSnap) => {
+          const task = docSnap.data();
+          const taskId = docSnap.id;
+          const isDone = task.completed ? 'completed' : '';
+
+          const card = document.createElement('div');
+          card.className = `task-card ${isDone}`;
+          card.innerHTML = `
+            <div class="task-left">
+              <div class="task-checkbox" data-id="${taskId}" data-status="${task.completed}">
+                <i data-feather="check"></i>
+              </div>
+              <div class="task-details">
+                <div class="task-title" data-id="${taskId}">${task.title}</div>
+                <div class="task-meta">
+                  <span class="task-tag">${task.subject}</span>
+                  <span class="priority-indicator priority-${task.priority}"></span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; gap:0.2rem;">
+              <button class="edit-task-btn" data-id="${taskId}">
+                <i data-feather="edit-2" style="width:16px; height:16px;"></i>
+              </button>
+              <button class="delete-task-btn" data-id="${taskId}">
+                <i data-feather="trash-2" style="width:16px; height:16px;"></i>
+              </button>
+            </div>
+          `;
+          taskListContainer.appendChild(card);
+        });
+
+        feather.replace();
+        attachTaskListeners(username, snapshot);
+      });
+    }
+
+    function attachTaskListeners(username, snapshot) {
+      document.querySelectorAll('.task-checkbox').forEach(box => {
+        box.addEventListener('click', async () => {
+          const id = box.getAttribute('data-id');
+          const currentStatus = box.getAttribute('data-status') === 'true';
+          await updateDoc(doc(db, "users", username, "tasks", id), { completed: !currentStatus });
+        });
+      });
+
+      document.querySelectorAll('.edit-task-btn, .task-title').forEach(elem => {
+        elem.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = elem.getAttribute('data-id');
+          const docSnap = snapshot.docs.find(d => d.id === id);
+          if (docSnap) {
+            const data = docSnap.data();
+            editTaskIdInput.value = id;
+            document.getElementById('taskTitle').value = data.title;
+            document.getElementById('taskSubject').value = data.subject;
+            document.getElementById('taskDueDate').value = data.dueDate || '';
+            document.getElementById('taskPriority').value = data.priority || 'medium';
+
+            taskModalTitle.textContent = "Edit Task";
+            taskSubmitBtn.innerHTML = `<i data-feather="save"></i> Update Task`;
+            addTaskModal.classList.add('active');
+            feather.replace();
+          }
+        });
+      });
+
+      document.querySelectorAll('.delete-task-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-id');
+          await deleteDoc(doc(db, "users", username, "tasks", id));
+        });
+      });
+    }
+
+    // Add or Edit Task
+    taskForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!auth.currentUser) return;
+      const username = auth.currentUser.email.split('@')[0];
+      const editId = editTaskIdInput.value;
+
+      const payload = {
+        title: document.getElementById('taskTitle').value.trim(),
+        subject: document.getElementById('taskSubject').value.trim(),
+        dueDate: document.getElementById('taskDueDate').value || null,
+        priority: document.getElementById('taskPriority').value,
+      };
+
+      if (editId) {
+        await updateDoc(doc(db, "users", username, "tasks", editId), payload);
+      } else {
+        await addDoc(collection(db, "users", username, "tasks"), {
+          ...payload,
+          completed: false,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      taskForm.reset();
+      editTaskIdInput.value = "";
+      addTaskModal.classList.remove('active');
+    });
+
+    // Render Homepage Studied Hours Summary
+    function renderHomeHoursDisplay() {
+      if (!homeHoursList) return;
+      if (cachedSubjects.length === 0) {
+        homeHoursList.innerHTML = `<div style="font-size:0.8rem; color:var(--text-muted); text-align:center;">No subjects added yet.</div>`;
+        return;
+      }
+
+      homeHoursList.innerHTML = '';
+      cachedSubjects.forEach(sub => {
+        const hrs = subjectHoursMap[sub.name] || 0;
+        const goal = sub.weeklyGoal || 5;
+
+        const row = document.createElement('div');
+        row.className = 'home-stat-item';
+        row.innerHTML = `
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <span style="width:10px; height:10px; border-radius:50%; background-color:${sub.color}; display:inline-block;"></span>
+            <span style="font-weight:600;">${sub.name}</span>
+          </div>
+          <span class="home-stat-badge">${hrs.toFixed(1)} / ${goal} hrs</span>
+        `;
+        homeHoursList.appendChild(row);
+      });
+    }
+
+    // Real-Time Subjects Listener with Goals support
+    function subscribeToSubjects(username) {
+      if (unsubscribeSubjects) unsubscribeSubjects();
+      const q = query(collection(db, "users", username, "subjects"), orderBy("createdAt", "desc"));
+
+      unsubscribeSubjects = onSnapshot(q, (snapshot) => {
+        timerSubjectSelect.innerHTML = '<option value="General Study">General Study</option>';
+        cachedSubjects = [];
+
+        if (snapshot.empty) {
+          subjectGrid.innerHTML = `
+            <div class="empty-state" style="grid-column: span 2;">
+              <i data-feather="book-open"></i>
+              <p>No subjects added yet. Tap "+ New Subject" to create one!</p>
+            </div>`;
+          renderHomeHoursDisplay();
+          feather.replace();
+          return;
+        }
+
+        subjectGrid.innerHTML = '';
+        snapshot.forEach((docSnap) => {
+          const sub = docSnap.data();
+          const subId = docSnap.id;
+          cachedSubjects.push({ id: subId, ...sub });
+
+          const hours = subjectHoursMap[sub.name] || 0;
+          const goal = sub.weeklyGoal || 5;
+          const progressPercent = Math.min(100, Math.round((hours / goal) * 100));
+
+          const opt = document.createElement('option');
+          opt.value = sub.name;
+          opt.textContent = sub.name;
+          timerSubjectSelect.appendChild(opt);
+
+          const card = document.createElement('div');
+          card.className = 'subject-card';
+          card.innerHTML = `
+            <div class="subject-color-bar" style="background-color: ${sub.color};"></div>
+            <div class="subject-card-header">
+              <div class="subject-name">${sub.name}</div>
+              <button class="action-icon-btn delete-subject-btn" data-id="${subId}">
+                <i data-feather="trash-2" style="width:14px; height:14px;"></i>
+              </button>
+            </div>
+            <div class="subject-time">${hours.toFixed(1)} / ${goal} hrs standard goal</div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width: ${progressPercent}%; background-color:${sub.color};"></div>
+            </div>
+          `;
+          subjectGrid.appendChild(card);
+        });
+
+        renderHomeHoursDisplay();
+        feather.replace();
+        attachSubjectDeleteListeners(username);
+      });
+    }
+
+    function attachSubjectDeleteListeners(username) {
+      document.querySelectorAll('.delete-subject-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const subId = btn.getAttribute('data-id');
+          await deleteDoc(doc(db, "users", username, "subjects", subId));
+        });
+      });
+    }
+
+    // Add Subject with Weekly Goal
+    subjectForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!auth.currentUser) return;
+      const username = auth.currentUser.email.split('@')[0];
+      const goalVal = parseFloat(document.getElementById('subjectWeeklyGoal').value) || 5;
+
+      await addDoc(collection(db, "users", username, "subjects"), {
+        name: document.getElementById('subjectName').value.trim(),
+        weeklyGoal: goalVal,
+        color: document.getElementById('subjectColor').value,
+        createdAt: new Date().toISOString()
+      });
+
+      subjectForm.reset();
+      addSubjectModal.classList.remove('active');
+    });
+
+    // Track Study Sessions & Calculate Hours
+    function subscribeToSessions(username) {
+      if (unsubscribeSessions) unsubscribeSessions();
+      const q = collection(db, "users", username, "studySessions");
+
+      unsubscribeSessions = onSnapshot(q, (snapshot) => {
+        subjectHoursMap = {};
+        snapshot.forEach((docSnap) => {
+          const session = docSnap.data();
+          const hrs = (session.durationSeconds || 0) / 3600;
+          subjectHoursMap[session.subject] = (subjectHoursMap[session.subject] || 0) + hrs;
+        });
+        renderHomeHoursDisplay();
+        if (auth.currentUser) subscribeToSubjects(username);
+      });
+    }
+
+    // EXPORT AND LOAD SESSION DATA
+    exportSessionBtn.addEventListener('click', async () => {
+      if (!auth.currentUser) return;
+      const username = auth.currentUser.email.split('@')[0];
+
+      try {
+        const tasksSnap = await getDocs(collection(db, "users", username, "tasks"));
+        const subjectsSnap = await getDocs(collection(db, "users", username, "subjects"));
+        const sessionsSnap = await getDocs(collection(db, "users", username, "studySessions"));
+
+        const exportData = {
+          version: "1.0",
+          exportedAt: new Date().toISOString(),
+          username: username,
+          tasks: tasksSnap.docs.map(d => d.data()),
+          subjects: subjectsSnap.docs.map(d => d.data()),
+          studySessions: sessionsSnap.docs.map(d => d.data())
+        };
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `StudyBuddy_Session_${username}_${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert("Failed to export session data: " + err.message);
+      }
+    });
+
+    loadSessionBtn.addEventListener('click', () => importSessionInput.click());
+
+    importSessionInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file || !auth.currentUser) return;
+      const username = auth.currentUser.email.split('@')[0];
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const data = JSON.parse(event.target.result);
+          if (!data.tasks || !data.subjects || !data.studySessions) {
+            throw new Error("Invalid session backup format.");
+          }
+
+          for (const t of data.tasks) {
+            await addDoc(collection(db, "users", username, "tasks"), t);
+          }
+          for (const s of data.subjects) {
+            await addDoc(collection(db, "users", username, "subjects"), s);
+          }
+          for (const sess of data.studySessions) {
+            await addDoc(collection(db, "users", username, "studySessions"), sess);
+          }
+
+          alert("Session data successfully restored and loaded!");
+          importSessionInput.value = '';
+        } catch (err) {
+          alert("Error loading session file: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Timer Modes & Stopwatch/Pomodoro Logic
+    modeStopwatch.addEventListener('click', () => {
+      timerMode = 'stopwatch';
+      modeStopwatch.classList.add('active');
+      modePomodoro.classList.remove('active');
+      resetTimer();
+    });
+
+    modePomodoro.addEventListener('click', () => {
+      timerMode = 'pomodoro';
+      modePomodoro.classList.add('active');
+      modeStopwatch.classList.remove('active');
+      resetTimer();
+    });
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      secondsElapsed = 0;
+      if (timerMode === 'pomodoro') {
+        timerDisplay.textContent = formatTimerDisplay(pomodoroDuration);
+      } else {
+        timerDisplay.textContent = '00:00:00';
+      }
+      startTimerBtn.classList.remove('hidden');
+      pauseTimerBtn.classList.add('hidden');
+      stopTimerBtn.classList.add('hidden');
+    }
+
+    function formatTimerDisplay(seconds) {
+      const hrs = Math.floor(seconds / 3600).toString().padStart(2, '0');
+      const mins = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+      const secs = (seconds % 60).toString().padStart(2, '0');
+      return `${hrs}:${mins}:${secs}`;
+    }
+
+    startTimerBtn.addEventListener('click', () => {
+      startTimerBtn.classList.add('hidden');
+      pauseTimerBtn.classList.remove('hidden');
+      stopTimerBtn.classList.remove('hidden');
+
+      timerInterval = setInterval(() => {
+        secondsElapsed++;
+        if (timerMode === 'pomodoro') {
+          const rem = pomodoroDuration - secondsElapsed;
+          if (rem <= 0) {
+            clearInterval(timerInterval);
+            timerDisplay.textContent = "00:00:00";
+            alert("⏰ Pomodoro session finished! Time for a break.");
+            stopTimerBtn.click();
+            return;
+          }
+          timerDisplay.textContent = formatTimerDisplay(rem);
+        } else {
+          timerDisplay.textContent = formatTimerDisplay(secondsElapsed);
+        }
+      }, 1000);
+    });
+
+    pauseTimerBtn.addEventListener('click', () => {
+      clearInterval(timerInterval);
+      startTimerBtn.classList.remove('hidden');
+      pauseTimerBtn.classList.add('hidden');
+    });
+
+    stopTimerBtn.addEventListener('click', async () => {
+      clearInterval(timerInterval);
+      if (secondsElapsed > 0 && auth.currentUser) {
+        const username = auth.currentUser.email.split('@')[0];
+        const selectedSubject = timerSubjectSelect.value;
+
+        await addDoc(collection(db, "users", username, "studySessions"), {
+          subject: selectedSubject,
+          durationSeconds: secondsElapsed,
+          createdAt: new Date().toISOString()
+        });
+      }
+      resetTimer();
+    });
+
+    // GRADES & PERFORMANCE ANALYZER LOGIC
+    function subscribeToGradeFolders(username) {
+      if (unsubscribeFolders) unsubscribeFolders();
+      const q = query(collection(db, "users", username, "gradeFolders"), orderBy("createdAt", "desc"));
+
+      unsubscribeFolders = onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+          gradesFolderContainer.innerHTML = `
+            <div class="empty-state">
+              <i data-feather="award"></i>
+              <p>No subject folders created yet. Tap "+ New Folder" to start logging test scores!</p>
+            </div>`;
+          feather.replace();
+          return;
+        }
+
+        gradesFolderContainer.innerHTML = '';
+        snapshot.forEach((folderDoc) => {
+          const folder = folderDoc.data();
+          const folderId = folderDoc.id;
+
+          const card = document.createElement('div');
+          card.className = 'grade-folder-card';
+          card.id = `folder-card-${folderId}`;
+          card.innerHTML = `
+            <div class="folder-header">
+              <div class="folder-title">
+                <i data-feather="folder" style="color: var(--accent);"></i>
+                <span>${folder.subject}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span id="badge-${folderId}" class="grade-badge badge-none">No Grades</span>
+                <button class="add-task-trigger add-score-btn" data-id="${folderId}">+ Score</button>
+                <button class="action-icon-btn delete-folder-btn" data-id="${folderId}"><i data-feather="trash-2" style="width:16px; height:16px;"></i></button>
+              </div>
+            </div>
+            <div id="grades-list-${folderId}" class="grade-item-list">
+              <div style="font-size:0.8rem; color: var(--text-muted); text-align:center; padding: 0.5rem;">Loading scores...</div>
+            </div>
+          `;
+          gradesFolderContainer.appendChild(card);
+          subscribeToScores(username, folderId);
+        });
+
+        feather.replace();
+        attachFolderActionListeners(username);
+      });
+    }
+
+    function subscribeToScores(username, folderId) {
+      if (gradeSubscribers[folderId]) gradeSubscribers[folderId]();
+
+      const q = query(collection(db, "users", username, "gradeFolders", folderId, "scores"), orderBy("createdAt", "desc"));
+      gradeSubscribers[folderId] = onSnapshot(q, (snapshot) => {
+        const listContainer = document.getElementById(`grades-list-${folderId}`);
+        const badgeSpan = document.getElementById(`badge-${folderId}`);
+        if (!listContainer || !badgeSpan) return;
+
+        if (snapshot.empty) {
+          listContainer.innerHTML = `<div style="font-size:0.75rem; color: var(--text-muted); text-align:center; padding: 0.4rem;">No tests logged yet.</div>`;
+          badgeSpan.className = 'grade-badge badge-none';
+          badgeSpan.textContent = 'No Grades';
+          return;
+        }
+
+        let totalScore = 0;
+        let count = 0;
+        listContainer.innerHTML = '';
+
+        snapshot.forEach((scoreDoc) => {
+          const item = scoreDoc.data();
+          const scoreId = scoreDoc.id;
+          totalScore += Number(item.score);
+          count++;
+
+          const scoreItem = document.createElement('div');
+          scoreItem.className = 'grade-item';
+          scoreItem.innerHTML = `
+            <div class="grade-item-info">
+              <span class="grade-item-title">${item.title}</span>
+              <span class="grade-item-date">${new Date(item.createdAt).toLocaleDateString()}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <span class="grade-item-score">${item.score}%</span>
+              <button class="action-icon-btn delete-score-btn" data-folder="${folderId}" data-id="${scoreId}"><i data-feather="x" style="width:14px; height:14px;"></i></button>
+            </div>
+          `;
+          listContainer.appendChild(scoreItem);
+        });
+
+        const avg = Math.round(totalScore / count);
+        if (avg >= 80) {
+          badgeSpan.className = 'grade-badge badge-high';
+          badgeSpan.textContent = `🟢 ${avg}% Avg`;
+        } else if (avg >= 60) {
+          badgeSpan.className = 'grade-badge badge-mid';
+          badgeSpan.textContent = `🟡 ${avg}% Avg`;
+        } else {
+          badgeSpan.className = 'grade-badge badge-low';
+          badgeSpan.textContent = `🔴 ${avg}% Avg`;
+        }
+
+        feather.replace();
+        attachScoreDeleteListeners(username);
+      });
+    }
+
+    function attachFolderActionListeners(username) {
+      document.querySelectorAll('.add-score-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const folderId = btn.getAttribute('data-id');
+          gradeFolderIdInput.value = folderId;
+          addGradeModal.classList.add('active');
+        });
+      });
+
+      document.querySelectorAll('.delete-folder-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const folderId = btn.getAttribute('data-id');
+          await deleteDoc(doc(db, "users", username, "gradeFolders", folderId));
+        });
+      });
+    }
+
+    function attachScoreDeleteListeners(username) {
+      document.querySelectorAll('.delete-score-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const folderId = btn.getAttribute('data-folder');
+          const scoreId = btn.getAttribute('data-id');
+          await deleteDoc(doc(db, "users", username, "gradeFolders", folderId, "scores", scoreId));
+        });
+      });
+    }
+
+    folderForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!auth.currentUser) return;
+      const username = auth.currentUser.email.split('@')[0];
+
+      await addDoc(collection(db, "users", username, "gradeFolders"), {
+        subject: document.getElementById('folderSubject').value.trim(),
+        createdAt: new Date().toISOString()
+      });
+
+      folderForm.reset();
+      addFolderModal.classList.remove('active');
+    });
+
+    gradeForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!auth.currentUser) return;
+      const username = auth.currentUser.email.split('@')[0];
+      const folderId = gradeFolderIdInput.value;
+
+      await addDoc(collection(db, "users", username, "gradeFolders", folderId, "scores"), {
+        title: document.getElementById('gradeTitle').value.trim(),
+        score: Number(document.getElementById('gradeScore').value),
+        createdAt: new Date().toISOString()
+      });
+
+      gradeForm.reset();
+      addGradeModal.classList.remove('active');
+    });
+
+    // INDEXEDDB, FILES, FOLDERS & NOTES SYSTEM
+    const DB_NAME = 'StudyBuddyVaultDB';
+    const DB_VERSION = 2;
+    const STORE_ITEMS = 'vault_items';
+
+    function openVaultDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(STORE_ITEMS)) {
+            const store = db.createObjectStore(STORE_ITEMS, { keyPath: 'id' });
+            store.createIndex('parentId', 'parentId', { unique: false });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function saveVaultItem(item) {
+      const db = await openVaultDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_ITEMS, 'readwrite');
+        tx.objectStore(STORE_ITEMS).put(item);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function getAllVaultItems() {
+      const db = await openVaultDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_ITEMS, 'readonly');
+        const request = tx.objectStore(STORE_ITEMS).getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function getItemsByParentId(parentId) {
+      const db = await openVaultDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_ITEMS, 'readonly');
+        const index = tx.objectStore(STORE_ITEMS).index('parentId');
+        const request = index.getAll(parentId);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function getVaultItemById(id) {
+      const db = await openVaultDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_ITEMS, 'readonly');
+        const request = tx.objectStore(STORE_ITEMS).get(id);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function deleteVaultItem(id) {
+      const db = await openVaultDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_ITEMS, 'readwrite');
+        tx.objectStore(STORE_ITEMS).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    function getCurrentFolderId() {
+      return currentFolderStack[currentFolderStack.length - 1].id;
+    }
+
+    function renderBreadcrumbs() {
+      vaultBreadcrumbs.innerHTML = '';
+      currentFolderStack.forEach((folder, index) => {
+        const span = document.createElement('span');
+        span.className = 'breadcrumb-item';
+        span.textContent = folder.name;
+        span.addEventListener('click', () => {
+          currentFolderStack = currentFolderStack.slice(0, index + 1);
+          renderVaultDirectory();
+        });
+        vaultBreadcrumbs.appendChild(span);
+
+        if (index < currentFolderStack.length - 1) {
+          const sep = document.createElement('span');
+          sep.className = 'breadcrumb-separator';
+          sep.textContent = ' / ';
+          vaultBreadcrumbs.appendChild(sep);
+        }
+      });
+    }
+
+    vaultSearchInput.addEventListener('input', () => {
+      renderVaultDirectory();
+    });
+
+    async function renderVaultDirectory() {
+      renderBreadcrumbs();
+      const currentParentId = getCurrentFolderId();
+      let items = await getItemsByParentId(currentParentId);
+
+      const filterText = vaultSearchInput.value.trim().toLowerCase();
+      if (filterText) {
+        items = items.filter(i => {
+          const title = (i.name || i.title || i.caption || '').toLowerCase();
+          return title.includes(filterText);
+        });
+      }
+
+      vaultGrid.innerHTML = '';
+
+      if (items.length === 0) {
+        vaultGrid.innerHTML = `
+          <div class="empty-state" style="grid-column: span 2;">
+            <i data-feather="folder"></i>
+            <p>No matching elements found in this folder.</p>
+          </div>`;
+        feather.replace();
+        populateCanvasFileSelector();
+        return;
+      }
+
+      items.sort((a, b) => b.createdAt - a.createdAt);
+
+      items.forEach((item) => {
+        if (item.itemType === 'folder') {
+          const folderCard = document.createElement('div');
+          folderCard.className = 'folder-item-card';
+          folderCard.innerHTML = `
+            <div class="folder-info">
+              <i data-feather="folder" style="color: var(--accent);"></i>
+              <span>${item.name}</span>
+            </div>
+            <button class="action-icon-btn btn-delete-item" data-id="${item.id}" style="width:auto; padding:0.2rem 0.4rem;">
+              <i data-feather="trash-2" style="width:14px; height:14px;"></i>
+            </button>
+          `;
+          
+          folderCard.addEventListener('click', (e) => {
+            if (e.target.closest('.btn-delete-item')) return;
+            currentFolderStack.push({ id: item.id, name: item.name });
+            renderVaultDirectory();
+          });
+
+          vaultGrid.appendChild(folderCard);
+        } else if (item.itemType === 'file') {
+          const fileCard = document.createElement('div');
+          fileCard.className = 'file-card';
+          const objectUrl = URL.createObjectURL(item.blob);
+          const isImage = item.fileType && item.fileType.startsWith('image/');
+
+          const mediaPreview = isImage 
+            ? `<img src="${objectUrl}" class="file-preview" alt="${item.caption}">`
+            : `<div class="file-preview"><i data-feather="file-text" style="width:32px; height:32px;"></i></div>`;
+
+          fileCard.innerHTML = `
+            ${mediaPreview}
+            <div class="file-content">
+              <p class="file-caption">${item.caption}</p>
+              <p class="file-date">${new Date(item.createdAt).toLocaleDateString()}</p>
+              <div class="file-actions-group">
+                <button class="btn-open-canvas" data-id="${item.id}">
+                  <i data-feather="eye" style="width:12px; height:12px;"></i> Canvas
+                </button>
+                <button class="btn-delete-item" data-id="${item.id}">
+                  <i data-feather="trash-2" style="width:12px; height:12px;"></i>
+                </button>
+              </div>
+            </div>
+          `;
+          vaultGrid.appendChild(fileCard);
+        } else if (item.itemType === 'note') {
+          const noteCard = document.createElement('div');
+          noteCard.className = 'note-card';
+          noteCard.innerHTML = `
+            <div class="note-content">
+              <p class="note-title"><i data-feather="edit-2" style="width:12px; color:var(--accent);"></i> ${item.title}</p>
+              <p class="note-body">${item.body}</p>
+              <p class="note-date">${new Date(item.createdAt).toLocaleDateString()}</p>
+              <div class="file-actions-group">
+                <button class="btn-open-canvas" data-id="${item.id}">
+                  <i data-feather="eye" style="width:12px; height:12px;"></i> Canvas
+                </button>
+                <button class="btn-delete-item" data-id="${item.id}">
+                  <i data-feather="trash-2" style="width:12px; height:12px;"></i>
+                </button>
+              </div>
+            </div>
+          `;
+          vaultGrid.appendChild(noteCard);
+        }
+      });
+
+      feather.replace();
+      attachVaultActions();
+      populateCanvasFileSelector();
+    }
+
+    function attachVaultActions() {
+      document.querySelectorAll('.btn-delete-item').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-id');
+          await deleteVaultItem(id);
+          renderVaultDirectory();
+        });
+      });
+
+      document.querySelectorAll('.btn-open-canvas').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-id');
+          openDocumentOnCanvas(id);
+        });
+      });
+    }
+
+    // Vault Form Submissions
+    vaultFolderForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const folderName = vaultFolderName.value.trim();
+      if (!folderName) return;
+
+      const folderItem = {
+        id: 'folder_' + Date.now(),
+        parentId: getCurrentFolderId(),
+        itemType: 'folder',
+        name: folderName,
+        createdAt: Date.now()
+      };
+
+      await saveVaultItem(folderItem);
+      vaultFolderForm.reset();
+      addVaultFolderModal.classList.remove('active');
+      renderVaultDirectory();
+    });
+
+    vaultFileInput.addEventListener('change', () => {
+      fileInputLabel.textContent = vaultFileInput.files[0] ? vaultFileInput.files[0].name : 'Choose file...';
+    });
+
+    vaultUploadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const file = vaultFileInput.files[0];
+      const caption = vaultCaptionInput.value.trim();
+      if (!file) return;
+
+      const fileItem = {
+        id: 'file_' + Date.now(),
+        parentId: getCurrentFolderId(),
+        itemType: 'file',
+        caption: caption || file.name,
+        blob: file,
+        fileType: file.type,
+        createdAt: Date.now()
+      };
+
+      await saveVaultItem(fileItem);
+      vaultUploadForm.reset();
+      fileInputLabel.textContent = 'Choose file...';
+      uploadVaultFileModal.classList.remove('active');
+      renderVaultDirectory();
+    });
+
+    noteForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = noteTitleInput.value.trim();
+      const body = noteBodyInput.value.trim();
+
+      const noteItem = {
+        id: 'note_' + Date.now(),
+        parentId: getCurrentFolderId(),
+        itemType: 'note',
+        title: title,
+        body: body,
+        createdAt: Date.now()
+      };
+
+      await saveVaultItem(noteItem);
+      noteForm.reset();
+      addNoteModal.classList.remove('active');
+      renderVaultDirectory();
+    });
+
+    // INTERACTIVE CANVAS ENGINE
+    async function populateCanvasFileSelector() {
+      const allItems = await getAllVaultItems();
+      const viewableItems = allItems.filter(i => i.itemType === 'file' || i.itemType === 'note');
+
+      canvasFileSelector.innerHTML = '<option value="">Select Document to View...</option>';
+      viewableItems.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.id;
+        opt.textContent = `${item.itemType === 'note' ? '📝 ' : '📄 '} ${item.title || item.caption}`;
+        canvasFileSelector.appendChild(opt);
+      });
+
+      if (currentActiveFile) {
+        canvasFileSelector.value = currentActiveFile.id;
+      }
+    }
+
+    canvasFileSelector.addEventListener('change', (e) => {
+      const id = e.target.value;
+      if (id) {
+        openDocumentOnCanvas(id);
+      } else {
+        clearCanvasDocumentView();
+      }
+    });
+
+    async function openDocumentOnCanvas(id) {
+      const item = await getVaultItemById(id);
+      if (!item) return;
+
+      currentActiveFile = item;
+      canvasEmptyState.classList.add('hidden');
+      canvasDocumentHolder.classList.remove('hidden');
+      mediaViewerContainer.innerHTML = '';
+
+      if (item.itemType === 'file') {
+        const objectUrl = URL.createObjectURL(item.blob);
+        if (item.fileType.startsWith('image/')) {
+          mediaViewerContainer.innerHTML = `<img src="${objectUrl}" class="document-image-view" />`;
+        } else if (item.fileType === 'application/pdf') {
+          mediaViewerContainer.innerHTML = `<iframe src="${objectUrl}" class="document-frame"></iframe>`;
+        } else {
+          mediaViewerContainer.innerHTML = `<div class="document-text-view">File Preview non-renderable inline. Title: ${item.caption}</div>`;
+        }
+      } else if (item.itemType === 'note') {
+        mediaViewerContainer.innerHTML = `
+          <div class="document-text-view">
+            <h2 style="font-size:1.2rem; margin-bottom:0.5rem; color:var(--accent);">${item.title}</h2>
+            <hr style="border-color:var(--border); margin-bottom:1rem;"/>
+            <p style="font-size:0.95rem; line-height:1.5;">${item.body}</p>
+          </div>
+        `;
+      }
+
+      // Switch tab to canvas
+      navItems.forEach(n => n.classList.remove('active'));
+      tabViews.forEach(v => v.classList.remove('active'));
+      canvasNavTabBtn.classList.add('active');
+      document.getElementById('tab-canvas').classList.add('active');
+
+      resizeAnnotationCanvas();
+      canvasFileSelector.value = id;
+    }
+
+    function clearCanvasDocumentView() {
+      currentActiveFile = null;
+      canvasDocumentHolder.classList.add('hidden');
+      canvasEmptyState.classList.remove('hidden');
+      mediaViewerContainer.innerHTML = '';
+      canvasCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+    }
+
+    function resizeAnnotationCanvas() {
+      if (!canvasViewportWrapper) return;
+      annotationCanvas.width = canvasViewportWrapper.clientWidth;
+      annotationCanvas.height = canvasViewportWrapper.clientHeight;
+    }
+
+    window.addEventListener('resize', resizeAnnotationCanvas);
+
+    // Canvas Tools Toolbar handlers
+    const toolsMap = {
+      toolScroll: 'scroll',
+      toolHighlight: 'highlight',
+      toolPen: 'pen',
+      toolText: 'text',
+      toolEraser: 'eraser'
+    };
+
+    Object.keys(toolsMap).forEach(btnId => {
+      const btn = document.getElementById(btnId);
+      btn.addEventListener('click', () => {
+        Object.keys(toolsMap).forEach(b => document.getElementById(b).classList.remove('active'));
+        btn.classList.add('active');
+        activeTool = toolsMap[btnId];
+
+        if (activeTool === 'scroll') {
+          annotationCanvas.style.pointerEvents = 'none';
+        } else {
+          annotationCanvas.style.pointerEvents = 'auto';
+        }
+      });
+    });
+
+    btnClearCanvas.addEventListener('click', () => {
+      canvasCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+    });
+
+    // Canvas Drawing Listeners
+    annotationCanvas.addEventListener('pointerdown', (e) => {
+      if (activeTool === 'scroll') return;
+      isDrawing = true;
+      const rect = annotationCanvas.getBoundingClientRect();
+      lastX = e.clientX - rect.left;
+      lastY = e.clientY - rect.top;
+
+      if (activeTool === 'text') {
+        const textPrompt = prompt("Enter text overlay:");
+        if (textPrompt) {
+          canvasCtx.fillStyle = canvasColorPicker.value;
+          canvasCtx.font = "16px sans-serif";
+          canvasCtx.fillText(textPrompt, lastX, lastY);
+        }
+        isDrawing = false;
+      }
+    });
+
+    annotationCanvas.addEventListener('pointermove', (e) => {
+      if (!isDrawing || activeTool === 'scroll') return;
+      const rect = annotationCanvas.getBoundingClientRect();
+      const currentX = e.clientX - rect.left;
+      const currentY = e.clientY - rect.top;
+
+      canvasCtx.beginPath();
+      canvasCtx.moveTo(lastX, lastY);
+      canvasCtx.lineTo(currentX, currentY);
+
+      if (activeTool === 'pen') {
+        canvasCtx.globalCompositeOperation = 'source-over';
+        canvasCtx.strokeStyle = canvasColorPicker.value;
+        canvasCtx.lineWidth = 2;
+        canvasCtx.stroke();
+      } else if (activeTool === 'highlight') {
+        canvasCtx.globalCompositeOperation = 'source-over';
+        canvasCtx.strokeStyle = canvasColorPicker.value + '80'; // semi-transparent
+        canvasCtx.lineWidth = 14;
+        canvasCtx.stroke();
+      } else if (activeTool === 'eraser') {
+        canvasCtx.globalCompositeOperation = 'destination-out';
+        canvasCtx.lineWidth = 18;
+        canvasCtx.stroke();
+      }
+
+      lastX = currentX;
+      lastY = currentY;
+    });
+
+    annotationCanvas.addEventListener('pointerup', () => isDrawing = false);
+    annotationCanvas.addEventListener('pointercancel', () => isDrawing = false);
+
+  </script>
+</body>
+</html>
