@@ -1,0 +1,17 @@
+{
+  "short_name": "StudyBuddy",
+  "name": "Study Buddy",
+  "icons": [
+    {
+      "src": "icon.png",
+      "type": "image/png",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#090d16",
+  "theme_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "portrait"
+}
