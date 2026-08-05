@@ -496,6 +496,12 @@
       border-radius: var(--radius-md);
       padding: 1rem;
       position: relative;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .subject-card:hover {
+      border-color: var(--accent);
     }
 
     .subject-card-header {
@@ -1227,6 +1233,24 @@
       </div>
     </div>
 
+    <!-- Subject Details Modal -->
+    <div id="subjectDetailsModal" class="modal-overlay">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3 id="subjectDetailsTitle">Subject Breakdown</h3>
+          <button id="closeSubjectDetailsModal" class="close-modal-btn"><i data-feather="x"></i></button>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <div id="subjectDetailsSummary" style="font-size: 0.9rem; font-weight: 600; color: var(--accent); margin-bottom: 0.5rem;"></div>
+          <div id="subjectDetailsTimerDisplay" style="font-size: 1.5rem; font-weight: 800; font-family: monospace; color: var(--text-main); margin-bottom: 1rem;">00:00:00 total</div>
+          <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-bottom: 0.5rem;">Recorded Sessions</div>
+          <div id="subjectSessionsList" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 250px; overflow-y: auto;">
+            <div class="empty-state">No sessions recorded yet.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="addFolderModal" class="modal-overlay">
       <div class="modal-sheet">
         <div class="modal-header">
@@ -1767,6 +1791,14 @@
     const modeStopwatch = document.getElementById('modeStopwatch');
     const modePomodoro = document.getElementById('modePomodoro');
 
+    // Subject Details Modal Elements
+    const subjectDetailsModal = document.getElementById('subjectDetailsModal');
+    const closeSubjectDetailsModal = document.getElementById('closeSubjectDetailsModal');
+    const subjectDetailsTitle = document.getElementById('subjectDetailsTitle');
+    const subjectDetailsSummary = document.getElementById('subjectDetailsSummary');
+    const subjectDetailsTimerDisplay = document.getElementById('subjectDetailsTimerDisplay');
+    const subjectSessionsList = document.getElementById('subjectSessionsList');
+
     // Grades Elements
     const gradesFolderContainer = document.getElementById('gradesFolderContainer');
     const addFolderModal = document.getElementById('addFolderModal');
@@ -1869,6 +1901,7 @@
     let timerMode = 'stopwatch';
     let pomodoroDuration = 25 * 60;
     let subjectHoursMap = {};
+    let subjectRawSessionsMap = {};
     let cachedSubjects = [];
 
     let currentFolderStack = [{ id: 'root', name: 'Root' }];
@@ -1910,7 +1943,6 @@
           const lastWeek = userData.lastActiveWeek;
 
           if (lastWeek && lastWeek !== currentWeek) {
-            // New week detected! Clear previous study sessions for the new week cycle
             const sessionsQuery = await getDocs(collection(db, "users", username, "studySessions"));
             for (const sDoc of sessionsQuery.docs) {
               await deleteDoc(doc(db, "users", username, "studySessions", sDoc.id));
@@ -1948,6 +1980,8 @@
     closeTaskModal.addEventListener('click', () => addTaskModal.classList.remove('active'));
     openSubjectModalBtn.addEventListener('click', () => addSubjectModal.classList.add('active'));
     closeSubjectModal.addEventListener('click', () => addSubjectModal.classList.remove('active'));
+    closeSubjectDetailsModal.addEventListener('click', () => subjectDetailsModal.classList.remove('active'));
+
     openFolderModalBtn.addEventListener('click', () => addFolderModal.classList.add('active'));
     closeFolderModal.addEventListener('click', () => addFolderModal.classList.remove('active'));
     closeGradeModal.addEventListener('click', () => addGradeModal.classList.remove('active'));
@@ -2025,14 +2059,12 @@
 
     logoutBtn.addEventListener('click', () => signOut(auth));
 
-    // Auth state observer
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         authOverlay.classList.add('hidden');
         statusDot.classList.add('online');
         const username = user.email ? user.email.split('@')[0] : 'user';
 
-        // Check and trigger weekly reset before loading profile/sessions
         await checkAndResetWeeklyProgress(username);
 
         loadUserProfile(username);
@@ -2058,7 +2090,6 @@
       }
     });
 
-    // Profile Load & Update
     async function loadUserProfile(username) {
       try {
         const userDocRef = doc(db, "users", username);
@@ -2114,7 +2145,6 @@
       loadUserProfile(username);
     });
 
-    // FRIENDS ENGINE LISTENERS & ACTIONS
     function subscribeToFriends(username) {
       if (unsubscribeFriends) unsubscribeFriends();
       const q = collection(db, "users", username, "friends");
@@ -2290,7 +2320,6 @@
       friendSearchInput.value = '';
     });
 
-    // Real-Time Tasks Listener with Edit support
     function subscribeToTasks(username) {
       if (unsubscribeTasks) unsubscribeTasks();
       const q = query(collection(db, "users", username, "tasks"), orderBy("createdAt", "desc"));
@@ -2382,7 +2411,6 @@
       });
     }
 
-    // Add or Edit Task
     taskForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!auth.currentUser) return;
@@ -2411,7 +2439,6 @@
       addTaskModal.classList.remove('active');
     });
 
-    // Render Homepage Studied Hours Summary
     function renderHomeHoursDisplay() {
       if (!homeHoursList) return;
       if (cachedSubjects.length === 0) {
@@ -2437,7 +2464,6 @@
       });
     }
 
-    // Real-Time Subjects Listener with Goals support
     function subscribeToSubjects(username) {
       if (unsubscribeSubjects) unsubscribeSubjects();
       const q = query(collection(db, "users", username, "subjects"), orderBy("createdAt", "desc"));
@@ -2474,6 +2500,7 @@
 
           const card = document.createElement('div');
           card.className = 'subject-card';
+          card.setAttribute('data-subject-name', sub.name);
           card.innerHTML = `
             <div class="subject-color-bar" style="background-color: ${sub.color};"></div>
             <div class="subject-card-header">
@@ -2492,15 +2519,51 @@
 
         renderHomeHoursDisplay();
         feather.replace();
-        attachSubjectDeleteListeners(username);
+        attachSubjectListeners(username);
       });
     }
 
-    function attachSubjectDeleteListeners(username) {
+    function attachSubjectListeners(username) {
       document.querySelectorAll('.delete-subject-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
           const id = btn.getAttribute('data-id');
           await deleteDoc(doc(db, "users", username, "subjects", id));
+        });
+      });
+
+      document.querySelectorAll('.subject-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const subName = card.getAttribute('data-subject-name');
+          const subObj = cachedSubjects.find(s => s.name === subName);
+          const sessions = subjectRawSessionsMap[subName] || [];
+
+          subjectDetailsTitle.textContent = subName;
+          let totalSecs = 0;
+          sessions.forEach(s => totalSecs += s.durationSeconds);
+          
+          subjectDetailsSummary.textContent = `Goal: ${subObj ? subObj.weeklyGoal : 5} hrs / week`;
+          subjectDetailsTimerDisplay.textContent = formatTime(totalSecs) + " total";
+
+          if (sessions.length === 0) {
+            subjectSessionsList.innerHTML = `<div class="empty-state" style="padding:1rem;"><p style="font-size:0.8rem;">No sessions recorded for this subject yet.</p></div>`;
+          } else {
+            subjectSessionsList.innerHTML = '';
+            sessions.forEach(sess => {
+              const item = document.createElement('div');
+              item.className = 'grade-item';
+              item.innerHTML = `
+                <div class="grade-item-info">
+                  <span class="grade-item-title">${new Date(sess.createdAt).toLocaleDateString()} ${new Date(sess.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                  <span class="grade-item-date">Duration</span>
+                </div>
+                <div class="grade-item-score" style="font-family: monospace;">${formatTime(sess.durationSeconds)}</div>
+              `;
+              subjectSessionsList.appendChild(item);
+            });
+          }
+
+          subjectDetailsModal.classList.add('active');
         });
       });
     }
@@ -2525,26 +2588,30 @@
       addSubjectModal.classList.remove('active');
     });
 
-    // Real-Time Study Sessions Listener
     function subscribeToSessions(username) {
       if (unsubscribeSessions) unsubscribeSessions();
       const q = collection(db, "users", username, "studySessions");
 
       unsubscribeSessions = onSnapshot(q, (snapshot) => {
         subjectHoursMap = {};
+        subjectRawSessionsMap = {};
+
         snapshot.forEach((docSnap) => {
           const session = docSnap.data();
           const subj = session.subject || "General Study";
           const durationSecs = session.durationSeconds || 0;
+
           if (!subjectHoursMap[subj]) subjectHoursMap[subj] = 0;
           subjectHoursMap[subj] += durationSecs / 3600;
+
+          if (!subjectRawSessionsMap[subj]) subjectRawSessionsMap[subj] = [];
+          subjectRawSessionsMap[subj].push({ id: docSnap.id, ...session });
         });
 
         subscribeToSubjects(username);
       });
     }
 
-    // Timer Logic
     function formatTime(secs) {
       const h = Math.floor(secs / 3600);
       const m = Math.floor((secs % 3600) / 60);
@@ -2618,7 +2685,6 @@
       startTimerBtn.classList.remove('hidden');
     });
 
-    // GRADES FOLDERS & EXAM LOGGING
     folderForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!auth.currentUser) return;
@@ -2791,7 +2857,6 @@
       addGradeModal.classList.remove('active');
     });
 
-    // VAULT & FILES DIRECTORY ENGINE
     vaultFolderForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!auth.currentUser) return;
@@ -2872,7 +2937,7 @@
       const username = auth.currentUser.email.split('@')[0];
       const currentParentId = currentFolderStack[currentFolderStack.length - 1].id;
 
-      // Render breadcrumbs
+      // Update Breadcrumbs
       vaultBreadcrumbs.innerHTML = '';
       currentFolderStack.forEach((folder, index) => {
         const span = document.createElement('span');
@@ -2883,6 +2948,7 @@
           renderVaultDirectory();
         });
         vaultBreadcrumbs.appendChild(span);
+
         if (index < currentFolderStack.length - 1) {
           const sep = document.createElement('span');
           sep.className = 'breadcrumb-separator';
@@ -2897,159 +2963,142 @@
       vaultGrid.innerHTML = '';
       canvasFileSelector.innerHTML = '<option value="">Select Document to View...</option>';
 
-      let itemsFound = 0;
-      snapshot.forEach((docSnap) => {
-        const item = docSnap.data();
-        const itemId = docSnap.id;
-
-        if (item.parentId !== currentParentId) return;
-        itemsFound++;
-
-        if (item.type === 'folder') {
-          const card = document.createElement('div');
-          card.className = 'folder-item-card';
-          card.innerHTML = `
-            <div class="folder-info">
-              <i data-feather="folder" style="color: var(--accent);"></i>
-              <span>${item.name}</span>
-            </div>
-            <button class="btn-delete-item delete-vault-item" data-id="${itemId}" style="padding: 0.3rem;">
-              <i data-feather="trash-2" style="width:14px; height:14px;"></i>
-            </button>
-          `;
-          card.addEventListener('click', (e) => {
-            if (e.target.closest('.delete-vault-item')) return;
-            currentFolderStack.push({ id: itemId, name: item.name });
-            renderVaultDirectory();
-          });
-          vaultGrid.appendChild(card);
-        } else if (item.type === 'file') {
-          const opt = document.createElement('option');
-          opt.value = itemId;
-          opt.textContent = item.caption || item.fileName;
-          canvasFileSelector.appendChild(opt);
-
-          const card = document.createElement('div');
-          card.className = 'file-card';
-          let previewHTML = `<div class="file-preview"><i data-feather="file" style="width:32px; height:32px;"></i></div>`;
-          if (item.fileType && item.fileType.startsWith('image/')) {
-            previewHTML = `<img src="${item.dataUrl}" class="file-preview" style="object-fit:cover;" />`;
-          }
-
-          card.innerHTML = `
-            ${previewHTML}
-            <div class="file-content">
-              <div class="file-caption">${item.caption}</div>
-              <div class="file-date">${new Date(item.createdAt).toLocaleDateString()}</div>
-              <div class="file-actions-group">
-                <button class="btn-open-canvas open-doc-canvas" data-id="${itemId}">
-                  <i data-feather="edit-3" style="width:12px;"></i> View/Annotate
-                </button>
-                <button class="btn-delete-item delete-vault-item" data-id="${itemId}">
-                  <i data-feather="trash-2" style="width:12px;"></i>
-                </button>
-              </div>
-            </div>
-          `;
-          vaultGrid.appendChild(card);
-        } else if (item.type === 'note') {
-          const card = document.createElement('div');
-          card.className = 'note-card';
-          card.innerHTML = `
-            <div class="note-content" style="flex:1;">
-              <div class="note-title">${item.title}</div>
-              <div class="note-body">${item.body}</div>
-              <div class="note-date">${new Date(item.createdAt).toLocaleDateString()}</div>
-            </div>
-            <div class="file-content" style="padding-top:0;">
-              <div class="file-actions-group">
-                <button class="btn-delete-item delete-vault-item" data-id="${itemId}" style="width:100%; justify-content:center;">
-                  <i data-feather="trash-2" style="width:12px;"></i> Delete Note
-                </button>
-              </div>
-            </div>
-          `;
-          vaultGrid.appendChild(card);
-        }
+      let items = [];
+      snapshot.forEach(docSnap => {
+        items.push({ id: docSnap.id, ...docSnap.data() });
       });
 
-      if (itemsFound === 0) {
+      // Populate file selector for canvas tab
+      items.filter(i => i.type === 'file' || i.type === 'note').forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.id;
+        opt.textContent = item.caption || item.title || item.fileName || 'Untitled Document';
+        canvasFileSelector.appendChild(opt);
+      });
+
+      const filteredItems = items.filter(i => i.parentId === currentParentId);
+      const searchTerm = vaultSearchInput.value.toLowerCase();
+
+      const displayItems = searchTerm ? items.filter(i => 
+        (i.name && i.name.toLowerCase().includes(searchTerm)) ||
+        (i.caption && i.caption.toLowerCase().includes(searchTerm)) ||
+        (i.title && i.title.toLowerCase().includes(searchTerm)) ||
+        (i.body && i.body.toLowerCase().includes(searchTerm))
+      ) : filteredItems;
+
+      if (displayItems.length === 0) {
         vaultGrid.innerHTML = `
           <div class="empty-state" style="grid-column: span 2;">
             <i data-feather="folder"></i>
             <p>This directory is empty. Use the buttons above to add folders, files, or notes!</p>
           </div>`;
+        feather.replace();
+        return;
       }
 
+      displayItems.forEach(item => {
+        if (item.type === 'folder') {
+          const div = document.createElement('div');
+          div.className = 'folder-item-card';
+          div.innerHTML = `
+            <div class="folder-info">
+              <i data-feather="folder" style="color: var(--accent);"></i>
+              <span>${item.name}</span>
+            </div>
+            <button class="btn-delete-item delete-vault-item" data-id="${item.id}" style="padding:0.3rem;">
+              <i data-feather="trash-2" style="width:14px; height:14px;"></i>
+            </button>
+          `;
+          div.addEventListener('click', (e) => {
+            if (e.target.closest('.delete-vault-item')) return;
+            currentFolderStack.push({ id: item.id, name: item.name });
+            renderVaultDirectory();
+          });
+          vaultGrid.appendChild(div);
+        } else if (item.type === 'file') {
+          const div = document.createElement('div');
+          div.className = 'file-card';
+          
+          let previewHtml = `<div class="file-preview"><i data-feather="file" style="width:32px; height:32px;"></i></div>`;
+          if (item.fileType && item.fileType.startsWith('image/')) {
+            previewHtml = `<img src="${item.dataUrl}" class="file-preview file-image-view" alt="Preview"/>`;
+          }
+
+          div.innerHTML = `
+            ${previewHtml}
+            <div class="file-content">
+              <div class="file-caption">${item.caption || item.fileName}</div>
+              <div class="file-date">${new Date(item.createdAt).toLocaleDateString()}</div>
+              <div class="file-actions-group">
+                <button class="btn-open-canvas open-file-canvas" data-id="${item.id}">
+                  <i data-feather="edit-3" style="width:12px; height:12px;"></i> Open Canvas
+                </button>
+                <button class="btn-delete-item delete-vault-item" data-id="${item.id}">
+                  <i data-feather="trash-2" style="width:12px; height:12px;"></i>
+                </button>
+              </div>
+            </div>
+          `;
+          vaultGrid.appendChild(div);
+        } else if (item.type === 'note') {
+          const div = document.createElement('div');
+          div.className = 'note-card';
+          div.innerHTML = `
+            <div class="note-content">
+              <div class="note-title">${item.title}</div>
+              <div class="note-body">${item.body}</div>
+              <div class="note-date">${new Date(item.createdAt).toLocaleDateString()}</div>
+              <div class="file-actions-group">
+                <button class="btn-open-canvas open-file-canvas" data-id="${item.id}">
+                  <i data-feather="edit-3" style="width:12px; height:12px;"></i> Open Canvas
+                </button>
+                <button class="btn-delete-item delete-vault-item" data-id="${item.id}">
+                  <i data-feather="trash-2" style="width:12px; height:12px;"></i>
+                </button>
+              </div>
+            </div>
+          `;
+          vaultGrid.appendChild(div);
+        }
+      });
+
       feather.replace();
-      attachVaultItemListeners(username);
+      attachVaultItemListeners(username, items);
     }
 
-    function attachVaultItemListeners(username) {
+    vaultSearchInput.addEventListener('input', () => {
+      renderVaultDirectory();
+    });
+
+    function attachVaultItemListeners(username, allItems) {
       document.querySelectorAll('.delete-vault-item').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           const id = btn.getAttribute('data-id');
-          if (confirm("Delete this item?")) {
+          if (confirm("Are you sure you want to delete this item?")) {
             await deleteDoc(doc(db, "users", username, "vault", id));
             renderVaultDirectory();
           }
         });
       });
 
-      document.querySelectorAll('.open-doc-canvas').forEach(btn => {
-        btn.addEventListener('click', async () => {
+      document.querySelectorAll('.open-file-canvas').forEach(btn => {
+        btn.addEventListener('click', () => {
           const id = btn.getAttribute('data-id');
-          canvasNavTabBtn.click();
-          canvasFileSelector.value = id;
-          loadDocumentIntoCanvas(username, id);
+          const fileObj = allItems.find(i => i.id === id);
+          if (fileObj) {
+            canvasFileSelector.value = id;
+            loadDocumentIntoCanvas(fileObj);
+            // Switch to canvas tab
+            navItems.forEach(n => n.classList.remove('active'));
+            tabViews.forEach(v => v.classList.remove('active'));
+            canvasNavTabBtn.classList.add('active');
+            document.getElementById('tab-canvas').classList.add('active');
+          }
         });
       });
     }
 
-    vaultSearchInput.addEventListener('input', async (e) => {
-      const term = e.target.value.trim().toLowerCase();
-      if (!term || !auth.currentUser) {
-        renderVaultDirectory();
-        return;
-      }
-      const username = auth.currentUser.email.split('@')[0];
-      const q = query(collection(db, "users", username, "vault"), orderBy("createdAt", "desc"));
-      const snapshot = await getDocs(q);
-
-      vaultGrid.innerHTML = '';
-      let found = 0;
-      snapshot.forEach((docSnap) => {
-        const item = docSnap.data();
-        const itemId = docSnap.id;
-        const match = (item.name && item.name.toLowerCase().includes(term)) ||
-                      (item.caption && item.caption.toLowerCase().includes(term)) ||
-                      (item.title && item.title.toLowerCase().includes(term)) ||
-                      (item.body && item.body.toLowerCase().includes(term));
-
-        if (match) {
-          found++;
-          const card = document.createElement('div');
-          card.className = item.type === 'file' ? 'file-card' : 'note-card';
-          card.innerHTML = `
-            <div class="file-content">
-              <div class="file-caption">${item.name || item.caption || item.title}</div>
-              <div class="file-date">${item.type.toUpperCase()} • ${new Date(item.createdAt).toLocaleDateString()}</div>
-              ${item.type === 'file' ? `<button class="btn-open-canvas open-doc-canvas" data-id="${itemId}" style="margin-top:0.5rem;"><i data-feather="edit-3"></i> View</button>` : ''}
-            </div>
-          `;
-          vaultGrid.appendChild(card);
-        }
-      });
-
-      if (found === 0) {
-        vaultGrid.innerHTML = `<div class="empty-state" style="grid-column:span 2;"><p>No results found for "${term}"</p></div>`;
-      }
-      feather.replace();
-      attachVaultItemListeners(username);
-    });
-
-    // INTERACTIVE CANVAS ANNOTATION ENGINE
     canvasFileSelector.addEventListener('change', async () => {
       const fileId = canvasFileSelector.value;
       if (!fileId || !auth.currentUser) {
@@ -3058,67 +3107,63 @@
         currentActiveFile = null;
         return;
       }
+
       const username = auth.currentUser.email.split('@')[0];
-      loadDocumentIntoCanvas(username, fileId);
+      const docSnap = await getDoc(doc(db, "users", username, "vault", fileId));
+      if (docSnap.exists()) {
+        loadDocumentIntoCanvas({ id: docSnap.id, ...docSnap.data() });
+      }
     });
 
-    async function loadDocumentIntoCanvas(username, fileId) {
-      const docRef = doc(db, "users", username, "vault", fileId);
-      const docSnap = await getDoc(docRef);
-      if (!docSnap.exists()) return;
-
-      currentActiveFile = { id: fileId, ...docSnap.data() };
+    function loadDocumentIntoCanvas(fileObj) {
+      currentActiveFile = fileObj;
       canvasEmptyState.classList.add('hidden');
       canvasDocumentHolder.classList.remove('hidden');
-
       mediaViewerContainer.innerHTML = '';
-      if (currentActiveFile.fileType && currentActiveFile.fileType.startsWith('image/')) {
-        const img = document.createElement('img');
-        img.src = currentActiveFile.dataUrl;
-        img.className = 'document-image-view';
-        mediaViewerContainer.appendChild(img);
-      } else if (currentActiveFile.fileType === 'application/pdf') {
-        const iframe = document.createElement('iframe');
-        iframe.src = currentActiveFile.dataUrl;
-        iframe.className = 'document-frame';
-        mediaViewerContainer.appendChild(iframe);
-      } else {
-        const div = document.createElement('div');
-        div.className = 'document-text-view';
-        div.textContent = currentActiveFile.dataUrl;
-        mediaViewerContainer.appendChild(div);
+
+      if (fileObj.type === 'file') {
+        if (fileObj.fileType && fileObj.fileType.startsWith('image/')) {
+          mediaViewerContainer.innerHTML = `<img src="${fileObj.dataUrl}" class="document-image-view" alt="Document"/>`;
+        } else if (fileObj.fileType === 'application/pdf') {
+          mediaViewerContainer.innerHTML = `<iframe src="${fileObj.dataUrl}" class="document-frame"></iframe>`;
+        } else {
+          mediaViewerContainer.innerHTML = `<div class="document-text-view">${fileObj.caption || fileObj.fileName}</div>`;
+        }
+      } else if (fileObj.type === 'note') {
+        mediaViewerContainer.innerHTML = `<div class="document-text-view"><h3>${fileObj.title}</h3><hr style="margin:0.5rem 0; border-color:#cbd5e1;"><p>${fileObj.body}</p></div>`;
       }
 
-      // Initialize Annotation Canvas sizing
+      // Resize annotation canvas to match wrapper dimensions
       setTimeout(() => {
-        annotationCanvas.width = mediaViewerContainer.clientWidth;
-        annotationCanvas.height = mediaViewerContainer.clientHeight;
-        drawAnnotations();
-      }, 100);
+        annotationCanvas.width = canvasViewportWrapper.clientWidth;
+        annotationCanvas.height = canvasViewportWrapper.clientHeight;
+        canvasCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+      }, 50);
     }
 
-    // Tool selectors
-    [toolScroll, toolHighlight, toolPen, toolText, toolEraser].forEach(toolBtn => {
-      toolBtn.addEventListener('click', () => {
-        [toolScroll, toolHighlight, toolPen, toolText, toolEraser].forEach(b => b.classList.remove('active'));
-        toolBtn.classList.add('active');
-        if (toolBtn === toolScroll) {
-          activeTool = 'scroll';
+    // Canvas Tools Setup
+    const tools = [toolScroll, toolHighlight, toolPen, toolText, toolEraser];
+    tools.forEach(tool => {
+      if (!tool) return;
+      tool.addEventListener('click', () => {
+        tools.forEach(t => t.classList.remove('active'));
+        tool.classList.add('active');
+        if (tool === toolScroll) activeTool = 'scroll';
+        else if (tool === toolHighlight) activeTool = 'highlight';
+        else if (tool === toolPen) activeTool = 'pen';
+        else if (tool === toolText) activeTool = 'text';
+        else if (tool === toolEraser) activeTool = 'eraser';
+
+        if (activeTool === 'scroll') {
           annotationCanvas.style.pointerEvents = 'none';
-        } else if (toolBtn === toolHighlight) {
-          activeTool = 'highlight';
-          annotationCanvas.style.pointerEvents = 'auto';
-        } else if (toolBtn === toolPen) {
-          activeTool = 'pen';
-          annotationCanvas.style.pointerEvents = 'auto';
-        } else if (toolBtn === toolText) {
-          activeTool = 'text';
-          annotationCanvas.style.pointerEvents = 'auto';
-        } else if (toolBtn === toolEraser) {
-          activeTool = 'eraser';
+        } else {
           annotationCanvas.style.pointerEvents = 'auto';
         }
       });
+    });
+
+    btnClearCanvas.addEventListener('click', () => {
+      canvasCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
     });
 
     annotationCanvas.addEventListener('mousedown', startDrawing);
@@ -3127,116 +3172,69 @@
     annotationCanvas.addEventListener('mouseleave', stopDrawing);
 
     annotationCanvas.addEventListener('touchstart', (e) => {
+      if (activeTool === 'scroll') return;
+      e.preventDefault();
       const touch = e.touches[0];
-      const mouseEvent = new MouseEvent('mousedown', {
-        clientX: touch.clientX,
-        clientY: touch.clientY
-      });
-      annotationCanvas.dispatchEvent(mouseEvent);
-    });
-    annotationCanvas.addEventListener('touchmove', (e) => {
-      const touch = e.touches[0];
-      const mouseEvent = new MouseEvent('mousemove', {
-        clientX: touch.clientX,
-        clientY: touch.clientY
-      });
-      annotationCanvas.dispatchEvent(mouseEvent);
-    });
-    annotationCanvas.addEventListener('touchend', () => {
-      const mouseEvent = new MouseEvent('mouseup', {});
-      annotationCanvas.dispatchEvent(mouseEvent);
+      const rect = annotationCanvas.getBoundingClientRect();
+      startDrawing({ clientX: touch.clientX, clientY: touch.clientY, offsetX: touch.clientX - rect.left, offsetY: touch.clientY - rect.top });
     });
 
-    function getMousePos(e) {
+    annotationCanvas.addEventListener('touchmove', (e) => {
+      if (activeTool === 'scroll') return;
+      e.preventDefault();
+      const touch = e.touches[0];
       const rect = annotationCanvas.getBoundingClientRect();
-      return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      };
-    }
+      draw({ clientX: touch.clientX, clientY: touch.clientY, offsetX: touch.clientX - rect.left, offsetY: touch.clientY - rect.top });
+    });
+
+    annotationCanvas.addEventListener('touchend', stopDrawing);
 
     function startDrawing(e) {
       if (activeTool === 'scroll') return;
       isDrawing = true;
-      const pos = getMousePos(e);
-      lastX = pos.x;
-      lastY = pos.y;
-
-      if (activeTool === 'text') {
-        const textPrompt = prompt("Enter annotation text:");
-        if (textPrompt) {
-          canvasCtx.font = "16px sans-serif";
-          canvasCtx.fillStyle = canvasColorPicker.value;
-          canvasCtx.fillText(textPrompt, lastX, lastY);
-          saveAnnotationsToFirestore();
-        }
-        isDrawing = false;
-      }
+      lastX = e.offsetX !== undefined ? e.offsetX : (e.clientX - annotationCanvas.getBoundingClientRect().left);
+      lastY = e.offsetY !== undefined ? e.offsetY : (e.clientY - annotationCanvas.getBoundingClientRect().top);
     }
 
     function draw(e) {
-      if (!isDrawing || activeTool === 'scroll' || activeTool === 'text') return;
-      const pos = getMousePos(e);
+      if (!isDrawing || activeTool === 'scroll') return;
+      const currentX = e.offsetX !== undefined ? e.offsetX : (e.clientX - annotationCanvas.getBoundingClientRect().left);
+      const currentY = e.offsetY !== undefined ? e.offsetY : (e.clientY - annotationCanvas.getBoundingClientRect().top);
 
       canvasCtx.beginPath();
       canvasCtx.moveTo(lastX, lastY);
-      canvasCtx.lineTo(pos.x, pos.y);
+      canvasCtx.lineTo(currentX, currentY);
 
       if (activeTool === 'pen') {
         canvasCtx.strokeStyle = canvasColorPicker.value;
         canvasCtx.lineWidth = 2;
         canvasCtx.globalCompositeOperation = 'source-over';
-        canvasCtx.stroke();
       } else if (activeTool === 'highlight') {
         canvasCtx.strokeStyle = canvasColorPicker.value;
         canvasCtx.lineWidth = 12;
-        canvasCtx.globalAlpha = 0.4;
-        canvasCtx.stroke();
-        canvasCtx.globalAlpha = 1.0;
+        canvasCtx.globalAlpha = 0.35;
+        canvasCtx.globalCompositeOperation = 'source-over';
       } else if (activeTool === 'eraser') {
         canvasCtx.strokeStyle = '#ffffff';
-        canvasCtx.lineWidth = 20;
+        canvasCtx.lineWidth = 16;
+        canvasCtx.globalAlpha = 1.0;
         canvasCtx.globalCompositeOperation = 'destination-out';
-        canvasCtx.stroke();
-        canvasCtx.globalCompositeOperation = 'source-over';
       }
 
-      lastX = pos.x;
-      lastY = pos.y;
+      canvasCtx.lineCap = 'round';
+      canvasCtx.lineJoin = 'round';
+      canvasCtx.stroke();
+      canvasCtx.globalAlpha = 1.0;
+
+      lastX = currentX;
+      lastY = currentY;
     }
 
-    async function stopDrawing() {
-      if (!isDrawing) return;
+    function stopDrawing() {
       isDrawing = false;
-      await saveAnnotationsToFirestore();
     }
 
-    async function saveAnnotationsToFirestore() {
-      if (!currentActiveFile || !auth.currentUser) return;
-      const username = auth.currentUser.email.split('@')[0];
-      const dataUrl = annotationCanvas.toDataURL();
-      await updateDoc(doc(db, "users", username, "vault", currentActiveFile.id), {
-        annotations: dataUrl
-      });
-    }
-
-    function drawAnnotations() {
-      if (!currentActiveFile || !currentActiveFile.annotations) return;
-      const img = new Image();
-      img.onload = () => {
-        canvasCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
-        canvasCtx.drawImage(img, 0, 0);
-      };
-      img.src = currentActiveFile.annotations;
-    }
-
-    btnClearCanvas.addEventListener('click', async () => {
-      if (!currentActiveFile) return;
-      canvasCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
-      await saveAnnotationsToFirestore();
-    });
-
-    // SESSION BACKUP & JSON EXPORT/IMPORT
+    // Session Export & Load Logic
     exportSessionBtn.addEventListener('click', async () => {
       if (!auth.currentUser) return;
       const username = auth.currentUser.email.split('@')[0];
@@ -3245,49 +3243,56 @@
       const subjectsSnap = await getDocs(collection(db, "users", username, "subjects"));
       const sessionsSnap = await getDocs(collection(db, "users", username, "studySessions"));
 
-      const backupData = {
-        exportedAt: new Date().toISOString(),
+      const exportData = {
+        username,
         tasks: tasksSnap.docs.map(d => d.data()),
         subjects: subjectsSnap.docs.map(d => d.data()),
-        sessions: sessionsSnap.docs.map(d => d.data())
+        sessions: sessionsSnap.docs.map(d => d.data()),
+        exportedAt: new Date().toISOString()
       };
 
-      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `study-buddy-backup-${username}.json`;
-      a.click();
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `study_buddy_backup_${username}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
     });
 
-    loadSessionBtn.addEventListener('click', () => importSessionInput.click());
+    loadSessionBtn.addEventListener('click', () => {
+      importSessionInput.click();
+    });
 
     importSessionInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
+
       const reader = new FileReader();
       reader.onload = async function(event) {
         try {
-          const data = JSON.parse(event.target.result);
+          const importData = JSON.parse(event.target.result);
           if (!auth.currentUser) return;
           const username = auth.currentUser.email.split('@')[0];
 
-          if (data.subjects) {
-            for (const sub of data.subjects) {
-              await addDoc(collection(db, "users", username, "subjects"), sub);
+          if (importData.tasks) {
+            for (const t of importData.tasks) {
+              await addDoc(collection(db, "users", username, "tasks"), t);
             }
           }
-          if (data.tasks) {
-            for (const task of data.tasks) {
-              await addDoc(collection(db, "users", username, "tasks"), task);
+          if (importData.subjects) {
+            for (const s of importData.subjects) {
+              await addDoc(collection(db, "users", username, "subjects"), s);
             }
           }
-          if (data.sessions) {
-            for (const ses of data.sessions) {
-              await addDoc(collection(db, "users", username, "studySessions"), ses);
+          if (importData.sessions) {
+            for (const sess of importData.sessions) {
+              await addDoc(collection(db, "users", username, "studySessions"), sess);
             }
           }
-          alert("Session backup successfully restored!");
+
+          alert("Session data successfully loaded and restored!");
+          importSessionInput.value = '';
         } catch (err) {
           alert("Failed to parse session JSON file.");
         }
