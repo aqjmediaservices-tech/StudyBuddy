@@ -1005,12 +1005,20 @@
       align-items: center;
       justify-content: space-between;
       gap: 0.75rem;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .friend-card:hover {
+      border-color: var(--accent);
     }
 
     .friend-info {
       display: flex;
       align-items: center;
       gap: 0.75rem;
+      flex: 1;
+      min-width: 0;
     }
 
     .friend-avatar {
@@ -1024,6 +1032,7 @@
       justify-content: center;
       font-weight: 700;
       color: var(--accent);
+      flex-shrink: 0;
     }
 
     .friend-stats-badge {
@@ -1363,6 +1372,44 @@
       </div>
     </div>
 
+    <!-- Friend Profile Modal -->
+    <div id="friendProfileModal" class="modal-overlay">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3 id="friendModalTitle">Friend Profile</h3>
+          <button id="closeFriendModal" class="close-modal-btn"><i data-feather="x"></i></button>
+        </div>
+        <div class="profile-card" style="margin-bottom: 0;">
+          <div class="profile-header-meta">
+            <div id="friendModalAvatar" class="profile-avatar">?</div>
+            <div>
+              <h3 id="friendModalFullName">Friend Name</h3>
+              <p id="friendModalHandle" style="font-size: 0.85rem; color: var(--text-muted);">@username</p>
+            </div>
+          </div>
+
+          <div class="profile-details-grid">
+            <div class="profile-detail-item">
+              <span class="detail-label">Age</span>
+              <span id="friendDispAge" class="detail-val">Private</span>
+            </div>
+            <div class="profile-detail-item">
+              <span class="detail-label">University</span>
+              <span id="friendDispUniversity" class="detail-val">Private</span>
+            </div>
+            <div class="profile-detail-item">
+              <span class="detail-label">Major</span>
+              <span id="friendDispMajor" class="detail-val">Private</span>
+            </div>
+            <div class="profile-detail-item">
+              <span class="detail-label">Semester</span>
+              <span id="friendDispSemester" class="detail-val">Private</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- App Header -->
     <header class="app-header">
       <div class="brand-logo">
@@ -1389,7 +1436,7 @@
         <div class="home-stats-card">
           <div class="section-title" style="font-size:0.95rem;">
             <i data-feather="clock" style="color: var(--accent); width:18px;"></i>
-            <span>Subject Hours Studied</span>
+            <span>Weekly Hours Studied</span>
           </div>
           <div id="homeHoursList" class="home-stats-list">
             <div style="font-size:0.8rem; color:var(--text-muted); text-align:center;">No subjects added yet.</div>
@@ -1794,6 +1841,16 @@
     const friendRequestsList = document.getElementById('friendRequestsList');
     const friendsList = document.getElementById('friendsList');
 
+    const friendProfileModal = document.getElementById('friendProfileModal');
+    const closeFriendModal = document.getElementById('closeFriendModal');
+    const friendModalAvatar = document.getElementById('friendModalAvatar');
+    const friendModalFullName = document.getElementById('friendModalFullName');
+    const friendModalHandle = document.getElementById('friendModalHandle');
+    const friendDispAge = document.getElementById('friendDispAge');
+    const friendDispUniversity = document.getElementById('friendDispUniversity');
+    const friendDispMajor = document.getElementById('friendDispMajor');
+    const friendDispSemester = document.getElementById('friendDispSemester');
+
     const exportSessionBtn = document.getElementById('exportSessionBtn');
     const loadSessionBtn = document.getElementById('loadSessionBtn');
     const importSessionInput = document.getElementById('importSessionInput');
@@ -1867,6 +1924,7 @@
 
     openEditProfileBtn.addEventListener('click', () => editProfileModal.classList.add('active'));
     closeProfileModal.addEventListener('click', () => editProfileModal.classList.remove('active'));
+    closeFriendModal.addEventListener('click', () => friendProfileModal.classList.remove('active'));
 
     authToggleBtn.addEventListener('click', () => {
       isRegisterMode = !isRegisterMode;
@@ -2045,6 +2103,7 @@
 
           const card = document.createElement('div');
           card.className = 'friend-card';
+          card.setAttribute('data-friend-username', friendUsername);
           
           let publicDetails = [];
           if (friendProfile.universityPublic && friendProfile.university) publicDetails.push(friendProfile.university);
@@ -2053,12 +2112,12 @@
           card.innerHTML = `
             <div class="friend-info">
               <div class="friend-avatar">${(friendProfile.displayName || friendUsername).charAt(0).toUpperCase()}</div>
-              <div>
-                <div style="font-weight:700; font-size: 0.95rem;">${friendProfile.displayName || friendUsername}</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">${publicDetails.join(' • ') || '@' + friendUsername}</div>
+              <div style="min-width:0; flex:1;">
+                <div style="font-weight:700; font-size: 0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${friendProfile.displayName || friendUsername}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${publicDetails.join(' • ') || '@' + friendUsername}</div>
               </div>
             </div>
-            <div style="display:flex; align-items:center; gap:0.5rem;">
+            <div style="display:flex; align-items:center; gap:0.5rem; flex-shrink:0;">
               <div class="friend-stats-badge">⏱ ${totalHours} hrs</div>
               <button class="btn-delete-item remove-friend-btn" data-username="${friendUsername}" style="padding: 0.3rem 0.5rem;" title="Remove Friend">
                 <i data-feather="user-minus" style="width:14px; height:14px;"></i>
@@ -2068,7 +2127,33 @@
           friendsList.appendChild(card);
         }
         feather.replace();
+        attachFriendCardListeners();
         attachRemoveFriendListeners(username);
+      });
+    }
+
+    function attachFriendCardListeners() {
+      document.querySelectorAll('.friend-card').forEach(card => {
+        card.addEventListener('click', async (e) => {
+          if (e.target.closest('.remove-friend-btn')) return;
+          const friendUsername = card.getAttribute('data-friend-username');
+          const friendUserSnap = await getDoc(doc(db, "users", friendUsername));
+          if (!friendUserSnap.exists()) return;
+
+          const data = friendUserSnap.data();
+          const name = data.displayName || friendUsername;
+
+          friendModalFullName.textContent = name;
+          friendModalHandle.textContent = `@${data.username || friendUsername}`;
+          friendModalAvatar.textContent = name.charAt(0).toUpperCase();
+
+          friendDispAge.textContent = (data.agePublic !== false && data.age) ? data.age : 'Private';
+          friendDispUniversity.textContent = (data.universityPublic !== false && data.university) ? data.university : 'Private';
+          friendDispMajor.textContent = (data.majorPublic !== false && data.major) ? data.major : 'Private';
+          friendDispSemester.textContent = (data.semesterPublic !== false && data.semester) ? data.semester : 'Private';
+
+          friendProfileModal.classList.add('active');
+        });
       });
     }
 
@@ -2356,7 +2441,7 @@
                 <i data-feather="trash-2" style="width:14px; height:14px;"></i>
               </button>
             </div>
-            <div class="subject-time">${hours.toFixed(1)} / ${goal} hrs standard goal</div>
+            <div class="subject-time">${hours.toFixed(1)} / ${goal} hrs weekly goal</div>
             <div class="progress-bar-bg">
               <div class="progress-bar-fill" style="width: ${progressPercent}%; background-color:${sub.color};"></div>
             </div>
@@ -2943,28 +3028,35 @@
       });
     }
 
-    // Vault Form Submissions
     vaultFolderForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const folderName = vaultFolderName.value.trim();
-      if (!folderName) return;
+      const name = vaultFolderName.value.trim();
+      if (!name) return;
 
-      const folderItem = {
-        id: 'folder_' + Date.now(),
-        parentId: getCurrentFolderId(),
+      const newFolder = {
+        id: 'folder_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
         itemType: 'folder',
-        name: folderName,
+        name: name,
+        parentId: getCurrentFolderId(),
         createdAt: Date.now()
       };
 
-      await saveVaultItem(folderItem);
-      vaultFolderForm.reset();
+      await saveVaultItem(newFolder);
+      vaultFolderName.value = '';
       addVaultFolderModal.classList.remove('active');
       renderVaultDirectory();
     });
 
-    vaultFileInput.addEventListener('change', () => {
-      fileInputLabel.textContent = vaultFileInput.files[0] ? vaultFileInput.files[0].name : 'Choose file...';
+    vaultFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        fileInputLabel.textContent = file.name;
+        if (!vaultCaptionInput.value) {
+          vaultCaptionInput.value = file.name;
+        }
+      } else {
+        fileInputLabel.textContent = 'Choose file...';
+      }
     });
 
     vaultUploadForm.addEventListener('submit', async (e) => {
@@ -2973,17 +3065,17 @@
       const caption = vaultCaptionInput.value.trim();
       if (!file) return;
 
-      const fileItem = {
-        id: 'file_' + Date.now(),
-        parentId: getCurrentFolderId(),
+      const newFile = {
+        id: 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
         itemType: 'file',
         caption: caption || file.name,
-        blob: file,
         fileType: file.type,
+        blob: file,
+        parentId: getCurrentFolderId(),
         createdAt: Date.now()
       };
 
-      await saveVaultItem(fileItem);
+      await saveVaultItem(newFile);
       vaultUploadForm.reset();
       fileInputLabel.textContent = 'Choose file...';
       uploadVaultFileModal.classList.remove('active');
@@ -2994,46 +3086,46 @@
       e.preventDefault();
       const title = noteTitleInput.value.trim();
       const body = noteBodyInput.value.trim();
+      if (!title || !body) return;
 
-      const noteItem = {
-        id: 'note_' + Date.now(),
-        parentId: getCurrentFolderId(),
+      const newNote = {
+        id: 'note_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
         itemType: 'note',
         title: title,
         body: body,
+        parentId: getCurrentFolderId(),
         createdAt: Date.now()
       };
 
-      await saveVaultItem(noteItem);
+      await saveVaultItem(newNote);
       noteForm.reset();
       addNoteModal.classList.remove('active');
       renderVaultDirectory();
     });
 
-    // INTERACTIVE CANVAS ENGINE
     async function populateCanvasFileSelector() {
       const allItems = await getAllVaultItems();
       const viewableItems = allItems.filter(i => i.itemType === 'file' || i.itemType === 'note');
-
+      
+      const currentVal = canvasFileSelector.value;
       canvasFileSelector.innerHTML = '<option value="">Select Document to View...</option>';
+
       viewableItems.forEach(item => {
         const opt = document.createElement('option');
         opt.value = item.id;
-        opt.textContent = `${item.itemType === 'note' ? '📝 ' : '📄 '} ${item.title || item.caption}`;
+        opt.textContent = item.itemType === 'file' ? `📁 ${item.caption}` : `📝 ${item.title}`;
         canvasFileSelector.appendChild(opt);
       });
 
-      if (currentActiveFile) {
-        canvasFileSelector.value = currentActiveFile.id;
-      }
+      if (currentVal) canvasFileSelector.value = currentVal;
     }
 
-    canvasFileSelector.addEventListener('change', (e) => {
-      const id = e.target.value;
+    canvasFileSelector.addEventListener('change', () => {
+      const id = canvasFileSelector.value;
       if (id) {
         openDocumentOnCanvas(id);
       } else {
-        clearCanvasDocumentView();
+        closeCanvasDocument();
       }
     });
 
@@ -3042,84 +3134,66 @@
       if (!item) return;
 
       currentActiveFile = item;
+      canvasFileSelector.value = id;
       canvasEmptyState.classList.add('hidden');
       canvasDocumentHolder.classList.remove('hidden');
       mediaViewerContainer.innerHTML = '';
 
       if (item.itemType === 'file') {
         const objectUrl = URL.createObjectURL(item.blob);
-        if (item.fileType.startsWith('image/')) {
-          mediaViewerContainer.innerHTML = `<img src="${objectUrl}" class="document-image-view" />`;
+        if (item.fileType && item.fileType.startsWith('image/')) {
+          mediaViewerContainer.innerHTML = `<img src="${objectUrl}" class="document-image-view" id="canvasActiveMedia" />`;
         } else if (item.fileType === 'application/pdf') {
-          mediaViewerContainer.innerHTML = `<iframe src="${objectUrl}" class="document-frame"></iframe>`;
+          mediaViewerContainer.innerHTML = `<iframe src="${objectUrl}" class="document-frame" id="canvasActiveMedia"></iframe>`;
         } else {
-          mediaViewerContainer.innerHTML = `<div class="document-text-view">File Preview non-renderable inline. Title: ${item.caption}</div>`;
+          mediaViewerContainer.innerHTML = `<div class="document-text-view">[Binary File Attachment: ${item.caption}]</div>`;
         }
       } else if (item.itemType === 'note') {
-        mediaViewerContainer.innerHTML = `
-          <div class="document-text-view">
-            <h2 style="font-size:1.2rem; margin-bottom:0.5rem; color:var(--accent);">${item.title}</h2>
-            <hr style="border-color:var(--border); margin-bottom:1rem;"/>
-            <p style="font-size:0.95rem; line-height:1.5;">${item.body}</p>
-          </div>
-        `;
+        mediaViewerContainer.innerHTML = `<div class="document-text-view"><h3>${item.title}</h3><hr style="margin:0.5rem 0; border-color:#cbd5e1;"/><p>${item.body}</p></div>`;
       }
 
-      // Switch tab to canvas
       navItems.forEach(n => n.classList.remove('active'));
       tabViews.forEach(v => v.classList.remove('active'));
       canvasNavTabBtn.classList.add('active');
       document.getElementById('tab-canvas').classList.add('active');
 
-      resizeAnnotationCanvas();
-      canvasFileSelector.value = id;
+      setTimeout(resizeAnnotationCanvas, 50);
     }
 
-    function clearCanvasDocumentView() {
+    function closeCanvasDocument() {
       currentActiveFile = null;
-      mediaViewerContainer.innerHTML = '';
       canvasDocumentHolder.classList.add('hidden');
       canvasEmptyState.classList.remove('hidden');
-      canvasFileSelector.value = '';
+      mediaViewerContainer.innerHTML = '';
     }
 
     function resizeAnnotationCanvas() {
-      if (!canvasViewportWrapper) return;
-      annotationCanvas.width = canvasViewportWrapper.clientWidth;
-      annotationCanvas.height = canvasViewportWrapper.clientHeight;
+      const rect = canvasViewportWrapper.getBoundingClientRect();
+      annotationCanvas.width = rect.width;
+      annotationCanvas.height = Math.max(rect.height, 500);
     }
 
     window.addEventListener('resize', resizeAnnotationCanvas);
 
-    // Canvas Tool Controls
-    const tools = [
-      { btn: toolScroll, name: 'scroll' },
-      { btn: toolHighlight, name: 'highlight' },
-      { btn: toolPen, name: 'pen' },
-      { btn: toolText, name: 'text' },
-      { btn: toolEraser, name: 'eraser' }
-    ];
+    // Canvas Tools & Annotation Drawing
+    toolScroll.addEventListener('click', () => setActiveTool('scroll'));
+    toolHighlight.addEventListener('click', () => setActiveTool('highlight'));
+    toolPen.addEventListener('click', () => setActiveTool('pen'));
+    toolText.addEventListener('click', () => setActiveTool('text'));
+    toolEraser.addEventListener('click', () => setActiveTool('eraser'));
 
-    tools.forEach(t => {
-      if (!t.btn) return;
-      t.btn.addEventListener('click', () => {
-        tools.forEach(o => o.btn && o.btn.classList.remove('active'));
-        t.btn.classList.add('active');
-        activeTool = t.name;
+    function setActiveTool(tool) {
+      activeTool = tool;
+      [toolScroll, toolHighlight, toolPen, toolText, toolEraser].forEach(b => b.classList.remove('active'));
+      document.getElementById('tool' + tool.charAt(0).toUpperCase() + tool.slice(1)).classList.add('active');
 
-        if (activeTool === 'scroll') {
-          annotationCanvas.style.pointerEvents = 'none';
-        } else {
-          annotationCanvas.style.pointerEvents = 'auto';
-        }
-      });
-    });
+      if (tool === 'scroll') {
+        annotationCanvas.style.pointerEvents = 'none';
+      } else {
+        annotationCanvas.style.pointerEvents = 'auto';
+      }
+    }
 
-    btnClearCanvas.addEventListener('click', () => {
-      canvasCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
-    });
-
-    // Canvas Drawing Listeners
     annotationCanvas.addEventListener('pointerdown', (e) => {
       if (activeTool === 'scroll') return;
       isDrawing = true;
@@ -3128,11 +3202,13 @@
       lastY = e.clientY - rect.top;
 
       if (activeTool === 'text') {
-        const text = prompt("Enter text annotation:");
-        if (text) {
+        const textVal = prompt("Enter annotation text:");
+        if (textVal) {
+          canvasCtx.save();
           canvasCtx.font = "16px sans-serif";
           canvasCtx.fillStyle = canvasColorPicker.value;
-          canvasCtx.fillText(text, lastX, lastY);
+          canvasCtx.fillText(textVal, lastX, lastY);
+          canvasCtx.restore();
         }
         isDrawing = false;
       }
@@ -3144,33 +3220,39 @@
       const currentX = e.clientX - rect.left;
       const currentY = e.clientY - rect.top;
 
+      canvasCtx.save();
       canvasCtx.beginPath();
       canvasCtx.moveTo(lastX, lastY);
       canvasCtx.lineTo(currentX, currentY);
 
       if (activeTool === 'pen') {
-        canvasCtx.globalCompositeOperation = 'source-over';
         canvasCtx.strokeStyle = canvasColorPicker.value;
-        canvasCtx.lineWidth = 2;
+        canvasCtx.lineWidth = 3;
+        canvasCtx.lineCap = 'round';
         canvasCtx.stroke();
       } else if (activeTool === 'highlight') {
-        canvasCtx.globalCompositeOperation = 'source-over';
-        canvasCtx.strokeStyle = canvasColorPicker.value + '80';
+        canvasCtx.strokeStyle = canvasColorPicker.value;
         canvasCtx.lineWidth = 14;
-        canvasCtx.lineCap = 'square';
+        canvasCtx.globalAlpha = 0.4;
+        canvasCtx.lineCap = 'butt';
         canvasCtx.stroke();
       } else if (activeTool === 'eraser') {
-        canvasCtx.globalCompositeOperation = 'destination-out';
-        canvasCtx.lineWidth = 20;
-        canvasCtx.stroke();
+        canvasCtx.clearRect(currentX - 10, currentY - 10, 20, 20);
       }
 
+      canvasCtx.restore();
       lastX = currentX;
       lastY = currentY;
     });
 
     annotationCanvas.addEventListener('pointerup', () => { isDrawing = false; });
     annotationCanvas.addEventListener('pointercancel', () => { isDrawing = false; });
+
+    btnClearCanvas.addEventListener('click', () => {
+      if (confirm("Clear all annotations on this canvas?")) {
+        canvasCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+      }
+    });
 
   </script>
 </body>
