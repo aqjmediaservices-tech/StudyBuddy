@@ -2058,11 +2058,29 @@
                 <div style="font-size: 0.75rem; color: var(--text-muted);">${publicDetails.join(' • ') || '@' + friendUsername}</div>
               </div>
             </div>
-            <div class="friend-stats-badge">⏱ ${totalHours} hrs</div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <div class="friend-stats-badge">⏱ ${totalHours} hrs</div>
+              <button class="btn-delete-item remove-friend-btn" data-username="${friendUsername}" style="padding: 0.3rem 0.5rem;" title="Remove Friend">
+                <i data-feather="user-minus" style="width:14px; height:14px;"></i>
+              </button>
+            </div>
           `;
           friendsList.appendChild(card);
         }
         feather.replace();
+        attachRemoveFriendListeners(username);
+      });
+    }
+
+    function attachRemoveFriendListeners(currentUsername) {
+      document.querySelectorAll('.remove-friend-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const friendUsername = btn.getAttribute('data-username');
+          if (confirm(`Are you sure you want to remove @${friendUsername} from your friends?`)) {
+            await deleteDoc(doc(db, "users", currentUsername, "friends", friendUsername));
+            await deleteDoc(doc(db, "users", friendUsername, "friends", currentUsername));
+          }
+        });
       });
     }
 
@@ -3059,10 +3077,10 @@
 
     function clearCanvasDocumentView() {
       currentActiveFile = null;
+      mediaViewerContainer.innerHTML = '';
       canvasDocumentHolder.classList.add('hidden');
       canvasEmptyState.classList.remove('hidden');
-      mediaViewerContainer.innerHTML = '';
-      canvasCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+      canvasFileSelector.value = '';
     }
 
     function resizeAnnotationCanvas() {
@@ -3073,21 +3091,21 @@
 
     window.addEventListener('resize', resizeAnnotationCanvas);
 
-    // Canvas Tools Toolbar handlers
-    const toolsMap = {
-      toolScroll: 'scroll',
-      toolHighlight: 'highlight',
-      toolPen: 'pen',
-      toolText: 'text',
-      toolEraser: 'eraser'
-    };
+    // Canvas Tool Controls
+    const tools = [
+      { btn: toolScroll, name: 'scroll' },
+      { btn: toolHighlight, name: 'highlight' },
+      { btn: toolPen, name: 'pen' },
+      { btn: toolText, name: 'text' },
+      { btn: toolEraser, name: 'eraser' }
+    ];
 
-    Object.keys(toolsMap).forEach(btnId => {
-      const btn = document.getElementById(btnId);
-      btn.addEventListener('click', () => {
-        Object.keys(toolsMap).forEach(b => document.getElementById(b).classList.remove('active'));
-        btn.classList.add('active');
-        activeTool = toolsMap[btnId];
+    tools.forEach(t => {
+      if (!t.btn) return;
+      t.btn.addEventListener('click', () => {
+        tools.forEach(o => o.btn && o.btn.classList.remove('active'));
+        t.btn.classList.add('active');
+        activeTool = t.name;
 
         if (activeTool === 'scroll') {
           annotationCanvas.style.pointerEvents = 'none';
@@ -3110,18 +3128,18 @@
       lastY = e.clientY - rect.top;
 
       if (activeTool === 'text') {
-        const textPrompt = prompt("Enter text overlay:");
-        if (textPrompt) {
-          canvasCtx.fillStyle = canvasColorPicker.value;
+        const text = prompt("Enter text annotation:");
+        if (text) {
           canvasCtx.font = "16px sans-serif";
-          canvasCtx.fillText(textPrompt, lastX, lastY);
+          canvasCtx.fillStyle = canvasColorPicker.value;
+          canvasCtx.fillText(text, lastX, lastY);
         }
         isDrawing = false;
       }
     });
 
     annotationCanvas.addEventListener('pointermove', (e) => {
-      if (!isDrawing || activeTool === 'scroll') return;
+      if (!isDrawing || activeTool === 'scroll' || activeTool === 'text') return;
       const rect = annotationCanvas.getBoundingClientRect();
       const currentX = e.clientX - rect.left;
       const currentY = e.clientY - rect.top;
@@ -3137,12 +3155,13 @@
         canvasCtx.stroke();
       } else if (activeTool === 'highlight') {
         canvasCtx.globalCompositeOperation = 'source-over';
-        canvasCtx.strokeStyle = canvasColorPicker.value + '80'; // semi-transparent
+        canvasCtx.strokeStyle = canvasColorPicker.value + '80';
         canvasCtx.lineWidth = 14;
+        canvasCtx.lineCap = 'square';
         canvasCtx.stroke();
       } else if (activeTool === 'eraser') {
         canvasCtx.globalCompositeOperation = 'destination-out';
-        canvasCtx.lineWidth = 18;
+        canvasCtx.lineWidth = 20;
         canvasCtx.stroke();
       }
 
@@ -3150,21 +3169,9 @@
       lastY = currentY;
     });
 
-    annotationCanvas.addEventListener('pointerup', () => isDrawing = false);
-    annotationCanvas.addEventListener('pointercancel', () => isDrawing = false);
+    annotationCanvas.addEventListener('pointerup', () => { isDrawing = false; });
+    annotationCanvas.addEventListener('pointercancel', () => { isDrawing = false; });
 
   </script>
-
-<!-- Register Service Worker -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('Service Worker registered!'))
-          .catch(err => console.log('Service Worker failed:', err));
-      });
-    }
-  </script>
-
 </body>
 </html>
