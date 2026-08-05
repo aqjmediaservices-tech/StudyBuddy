@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <title>Study Buddy</title>
 
-<!-- PWA Metadata & Icons -->
+  <!-- PWA Metadata & Icons -->
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" href="icon.png" />
   <link rel="apple-touch-icon" href="icon.png" />
@@ -815,19 +815,28 @@
     .canvas-header-bar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       gap: 0.5rem;
     }
 
-    .canvas-file-select {
-      background-color: var(--bg-surface);
-      border: 1px solid var(--border);
-      color: var(--text-main);
-      padding: 0.4rem 0.6rem;
+    .btn-remove-doc {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      padding: 0.4rem 0.75rem;
       border-radius: var(--radius-sm);
       font-size: 0.8rem;
-      flex: 1;
-      outline: none;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s;
+    }
+
+    .btn-remove-doc:hover {
+      background-color: var(--danger);
+      color: white;
     }
 
     .canvas-toolbar {
@@ -882,7 +891,7 @@
       background-color: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
-      overflow: auto;
+      overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -922,8 +931,53 @@
       height: 100%;
       touch-action: none;
       z-index: 10;
-      pointer-events: none;
     }
+
+    /* Draggable Canvas Text Element */
+    .canvas-text-box {
+      position: absolute;
+      z-index: 20;
+      min-width: 120px;
+      min-height: 36px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 0.3rem 0.5rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .canvas-text-box textarea {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #ffffff;
+      font-size: 0.9rem;
+      resize: both;
+      width: 100%;
+      height: 100%;
+      min-height: 24px;
+      font-family: inherit;
+    }
+
+    .canvas-text-box .drag-handle {
+      cursor: move;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+    }
+
+    .canvas-text-box .delete-box-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+    }
+    .canvas-text-box .delete-box-btn:hover { color: var(--danger); }
 
     /* PROFILE & FRIENDS ENGINE STYLES */
     .profile-card {
@@ -1565,9 +1619,10 @@
       <section id="tab-canvas" class="tab-view">
         <div class="canvas-container">
           <div class="canvas-header-bar">
-            <select id="canvasFileSelector" class="canvas-file-select">
-              <option value="">Select Document to View...</option>
-            </select>
+            <button id="btnRemoveDocument" class="btn-remove-doc">
+              <i data-feather="x-circle" style="width:16px; height:16px;"></i>
+              <span>Remove Current Document</span>
+            </button>
           </div>
 
           <div class="canvas-toolbar">
@@ -1575,7 +1630,7 @@
               <button id="toolScroll" class="tool-btn active" title="Scroll/Pan"><i data-feather="move"></i></button>
               <button id="toolHighlight" class="tool-btn" title="Highlighter"><i data-feather="edit-3"></i></button>
               <button id="toolPen" class="tool-btn" title="Pen Tool"><i data-feather="edit-2"></i></button>
-              <button id="toolText" class="tool-btn" title="Text Tool"><i data-feather="type"></i></button>
+              <button id="toolText" class="tool-btn" title="Creative Text Box"><i data-feather="type"></i></button>
               <button id="toolEraser" class="tool-btn" title="Eraser"><i data-feather="rotate-ccw"></i></button>
             </div>
 
@@ -1588,7 +1643,7 @@
           <div id="canvasViewportWrapper" class="canvas-viewport-wrapper">
             <div id="canvasEmptyState" class="empty-state">
               <i data-feather="file-text"></i>
-              <p>No document selected. Open a file from the Files Tab or select one above!</p>
+              <p>No document selected. Open a file or note from the Files Tab to load it here!</p>
             </div>
             
             <div id="canvasDocumentHolder" class="hidden" style="width:100%; height:100%; position:relative;">
@@ -1836,7 +1891,7 @@
     const noteBodyInput = document.getElementById('noteBodyInput');
 
     // Canvas Elements
-    const canvasFileSelector = document.getElementById('canvasFileSelector');
+    const btnRemoveDocument = document.getElementById('btnRemoveDocument');
     const canvasViewportWrapper = document.getElementById('canvasViewportWrapper');
     const canvasEmptyState = document.getElementById('canvasEmptyState');
     const canvasDocumentHolder = document.getElementById('canvasDocumentHolder');
@@ -1906,7 +1961,7 @@
 
     let currentFolderStack = [{ id: 'root', name: 'Root' }];
 
-    // Canvas drawing state
+    // Canvas State & Tools
     let activeTool = 'scroll';
     let isDrawing = false;
     let lastX = 0;
@@ -1921,7 +1976,6 @@
     }
     updateLiveDate();
 
-    // Utility: Get current ISO week string (e.g., "2026-W32")
     function getWeekIdentifier(date = new Date()) {
       const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
       const dayNum = d.getUTCDay() || 7;
@@ -1931,7 +1985,6 @@
       return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
     }
 
-    // Weekly Reset Logic: Compare saved week with current week
     async function checkAndResetWeeklyProgress(username) {
       try {
         const userDocRef = doc(db, "users", username);
@@ -1957,18 +2010,28 @@
       }
     }
 
-    // Tab Navigation Listener
+    // Navigation Switcher
+    function switchTab(targetId) {
+      navItems.forEach(n => {
+        if (n.getAttribute('data-target') === targetId) n.classList.add('active');
+        else n.classList.remove('active');
+      });
+      tabViews.forEach(v => {
+        if (v.id === targetId) v.classList.add('active');
+        else v.classList.remove('active');
+      });
+      if (targetId === 'tab-canvas') {
+        resizeCanvas();
+      }
+    }
+
     navItems.forEach(item => {
       item.addEventListener('click', () => {
-        const target = item.getAttribute('data-target');
-        navItems.forEach(n => n.classList.remove('active'));
-        tabViews.forEach(v => v.classList.remove('active'));
-        item.classList.add('active');
-        document.getElementById(target).classList.add('active');
+        switchTab(item.getAttribute('data-target'));
       });
     });
 
-    // Modal Events
+    // Modals
     openTaskModalBtn.addEventListener('click', () => {
       taskModalTitle.textContent = "Create New Task";
       taskSubmitBtn.innerHTML = `<i data-feather="plus"></i> Add Task`;
@@ -2937,7 +3000,6 @@
       const username = auth.currentUser.email.split('@')[0];
       const currentParentId = currentFolderStack[currentFolderStack.length - 1].id;
 
-      // Update Breadcrumbs
       vaultBreadcrumbs.innerHTML = '';
       currentFolderStack.forEach((folder, index) => {
         const span = document.createElement('span');
@@ -2961,19 +3023,9 @@
       const snapshot = await getDocs(q);
 
       vaultGrid.innerHTML = '';
-      canvasFileSelector.innerHTML = '<option value="">Select Document to View...</option>';
-
       let items = [];
       snapshot.forEach(docSnap => {
         items.push({ id: docSnap.id, ...docSnap.data() });
-      });
-
-      // Populate file selector for canvas tab
-      items.filter(i => i.type === 'file' || i.type === 'note').forEach(item => {
-        const opt = document.createElement('option');
-        opt.value = item.id;
-        opt.textContent = item.caption || item.title || item.fileName || 'Untitled Document';
-        canvasFileSelector.appendChild(opt);
       });
 
       const filteredItems = items.filter(i => i.parentId === currentParentId);
@@ -2998,80 +3050,72 @@
 
       displayItems.forEach(item => {
         if (item.type === 'folder') {
-          const div = document.createElement('div');
-          div.className = 'folder-item-card';
-          div.innerHTML = `
+          const card = document.createElement('div');
+          card.className = 'folder-item-card';
+          card.innerHTML = `
             <div class="folder-info">
               <i data-feather="folder" style="color: var(--accent);"></i>
               <span>${item.name}</span>
             </div>
-            <button class="btn-delete-item delete-vault-item" data-id="${item.id}" style="padding:0.3rem;">
+            <button class="btn-delete-item delete-vault-item-btn" data-id="${item.id}">
               <i data-feather="trash-2" style="width:14px; height:14px;"></i>
             </button>
           `;
-          div.addEventListener('click', (e) => {
-            if (e.target.closest('.delete-vault-item')) return;
+          card.addEventListener('click', (e) => {
+            if (e.target.closest('.delete-vault-item-btn')) return;
             currentFolderStack.push({ id: item.id, name: item.name });
             renderVaultDirectory();
           });
-          vaultGrid.appendChild(div);
+          vaultGrid.appendChild(card);
         } else if (item.type === 'file') {
-          const div = document.createElement('div');
-          div.className = 'file-card';
+          const card = document.createElement('div');
+          card.className = 'file-card';
           
-          let previewHtml = `<div class="file-preview"><i data-feather="file" style="width:32px; height:32px;"></i></div>`;
-          if (item.fileType && item.fileType.startsWith('image/')) {
-            previewHtml = `<img src="${item.dataUrl}" class="file-preview file-image-view" alt="Preview"/>`;
-          }
+          let isImg = item.fileType && item.fileType.startsWith('image/');
+          let previewContent = isImg 
+            ? `<img src="${item.dataUrl}" class="file-preview" alt="preview" />`
+            : `<div class="file-preview"><i data-feather="file" style="width:32px; height:32px;"></i></div>`;
 
-          div.innerHTML = `
-            ${previewHtml}
+          card.innerHTML = `
+            ${previewContent}
             <div class="file-content">
               <div class="file-caption">${item.caption || item.fileName}</div>
               <div class="file-date">${new Date(item.createdAt).toLocaleDateString()}</div>
               <div class="file-actions-group">
-                <button class="btn-open-canvas open-file-canvas" data-id="${item.id}">
-                  <i data-feather="edit-3" style="width:12px; height:12px;"></i> Open Canvas
-                </button>
-                <button class="btn-delete-item delete-vault-item" data-id="${item.id}">
-                  <i data-feather="trash-2" style="width:12px; height:12px;"></i>
-                </button>
+                <button class="btn-open-canvas open-in-canvas-btn" data-id="${item.id}"><i data-feather="edit-3" style="width:12px;"></i> Open in Canvas</button>
+                <button class="btn-delete-item delete-vault-item-btn" data-id="${item.id}"><i data-feather="trash-2" style="width:12px;"></i></button>
               </div>
             </div>
           `;
-          vaultGrid.appendChild(div);
+          vaultGrid.appendChild(card);
         } else if (item.type === 'note') {
-          const div = document.createElement('div');
-          div.className = 'note-card';
-          div.innerHTML = `
+          const card = document.createElement('div');
+          card.className = 'note-card';
+          card.innerHTML = `
             <div class="note-content">
-              <div class="note-title">${item.title}</div>
+              <div class="note-title"><i data-feather="edit-3" style="width:14px; color:var(--accent); margin-right:0.3rem;"></i> ${item.title}</div>
               <div class="note-body">${item.body}</div>
               <div class="note-date">${new Date(item.createdAt).toLocaleDateString()}</div>
               <div class="file-actions-group">
-                <button class="btn-open-canvas open-file-canvas" data-id="${item.id}">
-                  <i data-feather="edit-3" style="width:12px; height:12px;"></i> Open Canvas
-                </button>
-                <button class="btn-delete-item delete-vault-item" data-id="${item.id}">
-                  <i data-feather="trash-2" style="width:12px; height:12px;"></i>
-                </button>
+                <button class="btn-open-canvas open-in-canvas-btn" data-id="${item.id}"><i data-feather="edit-3" style="width:12px;"></i> Open in Canvas</button>
+                <button class="btn-delete-item delete-vault-item-btn" data-id="${item.id}"><i data-feather="trash-2" style="width:12px;"></i></button>
               </div>
             </div>
           `;
-          vaultGrid.appendChild(div);
+          vaultGrid.appendChild(card);
         }
       });
 
       feather.replace();
-      attachVaultItemListeners(username, items);
+      attachVaultListeners(username, items);
     }
 
     vaultSearchInput.addEventListener('input', () => {
       renderVaultDirectory();
     });
 
-    function attachVaultItemListeners(username, allItems) {
-      document.querySelectorAll('.delete-vault-item').forEach(btn => {
+    function attachVaultListeners(username, items) {
+      document.querySelectorAll('.delete-vault-item-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           const id = btn.getAttribute('data-id');
@@ -3082,78 +3126,95 @@
         });
       });
 
-      document.querySelectorAll('.open-file-canvas').forEach(btn => {
-        btn.addEventListener('click', () => {
+      document.querySelectorAll('.open-in-canvas-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
           const id = btn.getAttribute('data-id');
-          const fileObj = allItems.find(i => i.id === id);
-          if (fileObj) {
-            canvasFileSelector.value = id;
-            loadDocumentIntoCanvas(fileObj);
-            // Switch to canvas tab
-            navItems.forEach(n => n.classList.remove('active'));
-            tabViews.forEach(v => v.classList.remove('active'));
-            canvasNavTabBtn.classList.add('active');
-            document.getElementById('tab-canvas').classList.add('active');
+          const item = items.find(i => i.id === id);
+          if (item) {
+            loadDocumentToCanvas(item);
+            switchTab('tab-canvas');
           }
         });
       });
     }
 
-    canvasFileSelector.addEventListener('change', async () => {
-      const fileId = canvasFileSelector.value;
-      if (!fileId || !auth.currentUser) {
-        canvasEmptyState.classList.remove('hidden');
-        canvasDocumentHolder.classList.add('hidden');
-        currentActiveFile = null;
-        return;
-      }
+    // Interactive Canvas Implementation
+    function resizeCanvas() {
+      const rect = canvasViewportWrapper.getBoundingClientRect();
+      annotationCanvas.width = rect.width;
+      annotationCanvas.height = Math.max(rect.height, 500);
+    }
 
-      const username = auth.currentUser.email.split('@')[0];
-      const docSnap = await getDoc(doc(db, "users", username, "vault", fileId));
-      if (docSnap.exists()) {
-        loadDocumentIntoCanvas({ id: docSnap.id, ...docSnap.data() });
+    window.addEventListener('resize', resizeCanvas);
+
+    function clearCanvasMarks() {
+      canvasCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+      document.querySelectorAll('.canvas-text-box').forEach(el => el.remove());
+    }
+
+    btnClearCanvas.addEventListener('click', () => {
+      if (confirm("Clear all drawings and text boxes on canvas?")) {
+        clearCanvasMarks();
       }
     });
 
-    function loadDocumentIntoCanvas(fileObj) {
-      currentActiveFile = fileObj;
-      canvasEmptyState.classList.add('hidden');
-      canvasDocumentHolder.classList.remove('hidden');
+    btnRemoveDocument.addEventListener('click', () => {
+      currentActiveFile = null;
+      clearCanvasMarks();
+      mediaViewerContainer.innerHTML = '';
+      canvasDocumentHolder.classList.add('hidden');
+      canvasEmptyState.classList.remove('hidden');
+    });
+
+    function loadDocumentToCanvas(item) {
+      currentActiveFile = item;
+      clearCanvasMarks();
       mediaViewerContainer.innerHTML = '';
 
-      if (fileObj.type === 'file') {
-        if (fileObj.fileType && fileObj.fileType.startsWith('image/')) {
-          mediaViewerContainer.innerHTML = `<img src="${fileObj.dataUrl}" class="document-image-view" alt="Document"/>`;
-        } else if (fileObj.fileType === 'application/pdf') {
-          mediaViewerContainer.innerHTML = `<iframe src="${fileObj.dataUrl}" class="document-frame"></iframe>`;
+      if (item.type === 'file') {
+        if (item.fileType && item.fileType.startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = item.dataUrl;
+          img.className = 'document-image-view';
+          mediaViewerContainer.appendChild(img);
+        } else if (item.fileType === 'application/pdf') {
+          const iframe = document.createElement('iframe');
+          iframe.src = item.dataUrl;
+          iframe.className = 'document-frame';
+          mediaViewerContainer.appendChild(iframe);
         } else {
-          mediaViewerContainer.innerHTML = `<div class="document-text-view">${fileObj.caption || fileObj.fileName}</div>`;
+          const txt = document.createElement('div');
+          txt.className = 'document-text-view';
+          txt.textContent = `File Attachment: ${item.fileName}\n(Preview type: ${item.fileType})`;
+          mediaViewerContainer.appendChild(txt);
         }
-      } else if (fileObj.type === 'note') {
-        mediaViewerContainer.innerHTML = `<div class="document-text-view"><h3>${fileObj.title}</h3><hr style="margin:0.5rem 0; border-color:#cbd5e1;"><p>${fileObj.body}</p></div>`;
+      } else if (item.type === 'note') {
+        const txt = document.createElement('div');
+        txt.className = 'document-text-view';
+        txt.innerHTML = `<strong>${item.title}</strong>\n\n${item.body}`;
+        mediaViewerContainer.appendChild(txt);
       }
 
-      // Resize annotation canvas to match wrapper dimensions
-      setTimeout(() => {
-        annotationCanvas.width = canvasViewportWrapper.clientWidth;
-        annotationCanvas.height = canvasViewportWrapper.clientHeight;
-        canvasCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
-      }, 50);
+      canvasEmptyState.classList.add('hidden');
+      canvasDocumentHolder.classList.remove('hidden');
+      setTimeout(resizeCanvas, 50);
     }
 
-    // Canvas Tools Setup
-    const tools = [toolScroll, toolHighlight, toolPen, toolText, toolEraser];
-    tools.forEach(tool => {
-      if (!tool) return;
-      tool.addEventListener('click', () => {
-        tools.forEach(t => t.classList.remove('active'));
-        tool.classList.add('active');
-        if (tool === toolScroll) activeTool = 'scroll';
-        else if (tool === toolHighlight) activeTool = 'highlight';
-        else if (tool === toolPen) activeTool = 'pen';
-        else if (tool === toolText) activeTool = 'text';
-        else if (tool === toolEraser) activeTool = 'eraser';
+    // Canvas Tool Toolbar Options
+    const tools = [
+      { btn: toolScroll, name: 'scroll' },
+      { btn: toolHighlight, name: 'highlight' },
+      { btn: toolPen, name: 'pen' },
+      { btn: toolText, name: 'text' },
+      { btn: toolEraser, name: 'eraser' }
+    ];
 
+    tools.forEach(t => {
+      t.btn.addEventListener('click', () => {
+        tools.forEach(o => o.btn.classList.remove('active'));
+        t.btn.classList.add('active');
+        activeTool = t.name;
         if (activeTool === 'scroll') {
           annotationCanvas.style.pointerEvents = 'none';
         } else {
@@ -3162,139 +3223,178 @@
       });
     });
 
-    btnClearCanvas.addEventListener('click', () => {
-      canvasCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
-    });
+    // Creative Drag-and-Drop Canvas Text Box Creator
+    function createTextBox(x, y) {
+      const box = document.createElement('div');
+      box.className = 'canvas-text-box';
+      box.style.left = `${x}px`;
+      box.style.top = `${y}px`;
 
-    annotationCanvas.addEventListener('mousedown', startDrawing);
-    annotationCanvas.addEventListener('mousemove', draw);
-    annotationCanvas.addEventListener('mouseup', stopDrawing);
-    annotationCanvas.addEventListener('mouseleave', stopDrawing);
+      box.innerHTML = `
+        <span class="drag-handle"><i data-feather="move" style="width:14px; height:14px;"></i></span>
+        <textarea placeholder="Type note..."></textarea>
+        <button class="delete-box-btn"><i data-feather="x" style="width:14px; height:14px;"></i></button>
+      `;
 
-    annotationCanvas.addEventListener('touchstart', (e) => {
-      if (activeTool === 'scroll') return;
-      e.preventDefault();
-      const touch = e.touches[0];
+      canvasViewportWrapper.appendChild(box);
+      feather.replace();
+
+      const textarea = box.querySelector('textarea');
+      const dragHandle = box.querySelector('.drag-handle');
+      const deleteBtn = box.querySelector('.delete-box-btn');
+
+      textarea.style.color = canvasColorPicker.value;
+      textarea.focus();
+
+      deleteBtn.addEventListener('click', () => box.remove());
+
+      // Draggable logic
+      let isDraggingBox = false;
+      let startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+
+      const startDrag = (e) => {
+        isDraggingBox = true;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        startX = clientX;
+        startY = clientY;
+        initialLeft = box.offsetLeft;
+        initialTop = box.offsetTop;
+        e.stopPropagation();
+      };
+
+      const doDrag = (e) => {
+        if (!isDraggingBox) return;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const dx = clientX - startX;
+        const dy = clientY - startY;
+        box.style.left = `${initialLeft + dx}px`;
+        box.style.top = `${initialTop + dy}px`;
+      };
+
+      const stopDrag = () => { isDraggingBox = false; };
+
+      dragHandle.addEventListener('mousedown', startDrag);
+      window.addEventListener('mousemove', doDrag);
+      window.addEventListener('mouseup', stopDrag);
+
+      dragHandle.addEventListener('touchstart', startDrag, { passive: true });
+      window.addEventListener('touchmove', doDrag, { passive: true });
+      window.addEventListener('touchend', stopDrag);
+    }
+
+    // Drawing Annotation Listeners
+    function getCanvasCoordinates(e) {
       const rect = annotationCanvas.getBoundingClientRect();
-      startDrawing({ clientX: touch.clientX, clientY: touch.clientY, offsetX: touch.clientX - rect.left, offsetY: touch.clientY - rect.top });
-    });
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
 
-    annotationCanvas.addEventListener('touchmove', (e) => {
+    function startDraw(e) {
       if (activeTool === 'scroll') return;
-      e.preventDefault();
-      const touch = e.touches[0];
-      const rect = annotationCanvas.getBoundingClientRect();
-      draw({ clientX: touch.clientX, clientY: touch.clientY, offsetX: touch.clientX - rect.left, offsetY: touch.clientY - rect.top });
-    });
+      const pos = getCanvasCoordinates(e);
 
-    annotationCanvas.addEventListener('touchend', stopDrawing);
+      if (activeTool === 'text') {
+        createTextBox(pos.x, pos.y);
+        return;
+      }
 
-    function startDrawing(e) {
-      if (activeTool === 'scroll') return;
       isDrawing = true;
-      lastX = e.offsetX !== undefined ? e.offsetX : (e.clientX - annotationCanvas.getBoundingClientRect().left);
-      lastY = e.offsetY !== undefined ? e.offsetY : (e.clientY - annotationCanvas.getBoundingClientRect().top);
+      lastX = pos.x;
+      lastY = pos.y;
     }
 
     function draw(e) {
-      if (!isDrawing || activeTool === 'scroll') return;
-      const currentX = e.offsetX !== undefined ? e.offsetX : (e.clientX - annotationCanvas.getBoundingClientRect().left);
-      const currentY = e.offsetY !== undefined ? e.offsetY : (e.clientY - annotationCanvas.getBoundingClientRect().top);
+      if (!isDrawing || activeTool === 'scroll' || activeTool === 'text') return;
+      const pos = getCanvasCoordinates(e);
 
       canvasCtx.beginPath();
       canvasCtx.moveTo(lastX, lastY);
-      canvasCtx.lineTo(currentX, currentY);
+      canvasCtx.lineTo(pos.x, pos.y);
 
       if (activeTool === 'pen') {
-        canvasCtx.strokeStyle = canvasColorPicker.value;
-        canvasCtx.lineWidth = 2;
         canvasCtx.globalCompositeOperation = 'source-over';
+        canvasCtx.strokeStyle = canvasColorPicker.value;
+        canvasCtx.lineWidth = 3;
+        canvasCtx.lineCap = 'round';
+        canvasCtx.stroke();
       } else if (activeTool === 'highlight') {
-        canvasCtx.strokeStyle = canvasColorPicker.value;
-        canvasCtx.lineWidth = 12;
-        canvasCtx.globalAlpha = 0.35;
         canvasCtx.globalCompositeOperation = 'source-over';
+        canvasCtx.strokeStyle = canvasColorPicker.value + '66';
+        canvasCtx.lineWidth = 14;
+        canvasCtx.lineCap = 'square';
+        canvasCtx.stroke();
       } else if (activeTool === 'eraser') {
-        canvasCtx.strokeStyle = '#ffffff';
-        canvasCtx.lineWidth = 16;
-        canvasCtx.globalAlpha = 1.0;
         canvasCtx.globalCompositeOperation = 'destination-out';
+        canvasCtx.lineWidth = 20;
+        canvasCtx.lineCap = 'round';
+        canvasCtx.stroke();
       }
 
-      canvasCtx.lineCap = 'round';
-      canvasCtx.lineJoin = 'round';
-      canvasCtx.stroke();
-      canvasCtx.globalAlpha = 1.0;
-
-      lastX = currentX;
-      lastY = currentY;
+      lastX = pos.x;
+      lastY = pos.y;
     }
 
-    function stopDrawing() {
+    function stopDraw() {
       isDrawing = false;
     }
 
-    // Session Export & Load Logic
+    annotationCanvas.addEventListener('mousedown', startDraw);
+    annotationCanvas.addEventListener('mousemove', draw);
+    annotationCanvas.addEventListener('mouseup', stopDraw);
+    annotationCanvas.addEventListener('mouseleave', stopDraw);
+
+    annotationCanvas.addEventListener('touchstart', startDraw, { passive: true });
+    annotationCanvas.addEventListener('touchmove', draw, { passive: true });
+    annotationCanvas.addEventListener('touchend', stopDraw);
+
+    // Session Data Export & Restore Logic
     exportSessionBtn.addEventListener('click', async () => {
       if (!auth.currentUser) return;
       const username = auth.currentUser.email.split('@')[0];
 
       const tasksSnap = await getDocs(collection(db, "users", username, "tasks"));
+      const tasks = tasksSnap.docs.map(d => d.data());
+
       const subjectsSnap = await getDocs(collection(db, "users", username, "subjects"));
-      const sessionsSnap = await getDocs(collection(db, "users", username, "studySessions"));
+      const subjects = subjectsSnap.docs.map(d => d.data());
 
-      const exportData = {
-        username,
-        tasks: tasksSnap.docs.map(d => d.data()),
-        subjects: subjectsSnap.docs.map(d => d.data()),
-        sessions: sessionsSnap.docs.map(d => d.data()),
-        exportedAt: new Date().toISOString()
-      };
-
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `study_buddy_backup_${username}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ username, tasks, subjects }, null, 2));
+      const dlAnchorElem = document.createElement('a');
+      dlAnchorElem.setAttribute("href", dataStr);
+      dlAnchorElem.setAttribute("download", `studybuddy_backup_${username}.json`);
+      dlAnchorElem.click();
     });
 
-    loadSessionBtn.addEventListener('click', () => {
-      importSessionInput.click();
-    });
+    loadSessionBtn.addEventListener('click', () => importSessionInput.click());
 
     importSessionInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
-      if (!file) return;
+      if (!file || !auth.currentUser) return;
+      const username = auth.currentUser.email.split('@')[0];
 
       const reader = new FileReader();
-      reader.onload = async function(event) {
+      reader.onload = async (event) => {
         try {
-          const importData = JSON.parse(event.target.result);
-          if (!auth.currentUser) return;
-          const username = auth.currentUser.email.split('@')[0];
-
-          if (importData.tasks) {
-            for (const t of importData.tasks) {
-              await addDoc(collection(db, "users", username, "tasks"), t);
+          const parsed = JSON.parse(event.target.result);
+          if (parsed.tasks && Array.isArray(parsed.tasks)) {
+            for (const t of parsed.tasks) {
+              await addDoc(collection(db, "users", username, "tasks"), { ...t, createdAt: new Date().toISOString() });
             }
           }
-          if (importData.subjects) {
-            for (const s of importData.subjects) {
-              await addDoc(collection(db, "users", username, "subjects"), s);
+          if (parsed.subjects && Array.isArray(parsed.subjects)) {
+            for (const s of parsed.subjects) {
+              await addDoc(collection(db, "users", username, "subjects"), { ...s, createdAt: new Date().toISOString() });
             }
           }
-          if (importData.sessions) {
-            for (const sess of importData.sessions) {
-              await addDoc(collection(db, "users", username, "studySessions"), sess);
-            }
-          }
-
-          alert("Session data successfully loaded and restored!");
-          importSessionInput.value = '';
+          alert("Session restored successfully!");
         } catch (err) {
-          alert("Failed to parse session JSON file.");
+          alert("Failed to parse JSON file.");
         }
       };
       reader.readAsText(file);
